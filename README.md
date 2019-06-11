@@ -44,6 +44,13 @@
     - `conda install tqdm`
 - The code has been tested on Tesla M40 GPU running on Ubuntu 16.04.4 LTS.
 
+#### Preparing the data
+- `sudo usermod -a -G docker $USER`
+- `cat /etc/group` and see `docker:x:998:$USER` 
+- relogin
+- `docker run --name corenlp -d -p 9000:9000 vzhong/corenlp-server`
+- `python3 annotate_ws.py`
+
 #### Running code
 - Type `python3 train.py --seed 1 --bS 16 --accumulate_gradients 2 --bert_type_abb uS --fine_tune --lr 0.001 --lr_bert 0.00001 --max_seq_leng 222` on terminal.
     - `--seed 1`: Set the seed of random generator. The accuracies changes by few percent depending on `seed`.

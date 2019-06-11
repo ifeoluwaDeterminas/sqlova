@@ -121,7 +121,7 @@ def get_bert(BERT_PT_PATH, bert_type, do_lower_case, no_pretraining):
     if no_pretraining:
         pass
     else:
-        model_bert.load_state_dict(torch.load(init_checkpoint, map_location='cpu'))
+        model_bert.load_state_dict(torch.load(init_checkpoint))#, map_location='cpu'))
         print("Load pre-trained parameters.")
     model_bert.to(device)
 
@@ -556,8 +556,8 @@ if __name__ == '__main__':
     args = construct_hyper_param(parser)
 
     ## 2. Paths
-    path_h = '/home/wonseok'
-    path_wikisql = os.path.join(path_h, 'data', 'wikisql_tok')
+    path_h = '/home/aerin/Desktop/sqlova'
+    path_wikisql = os.path.join(path_h, 'data', 'wikisql_tok2')
     BERT_PT_PATH = path_wikisql
 
     path_save_for_evaluation = './'

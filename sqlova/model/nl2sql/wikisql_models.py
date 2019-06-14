@@ -84,8 +84,8 @@ class Seq2SQL_v1(nn.Module):
             pr_wo = pred_wo(pr_wn, s_wo)
 
         # wv
-        s_wv = self.wvp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn, wc=pr_wc, wo=pr_wo, show_p_wv=show_p_wv)
-
+        s_wv = self.wvp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn, wc=pr_wc, wo=pr_wo, show_p_wv=show_p_wv, g_wvi= g_wvi) 
+        #import pdb;pdb.set_trace()
         return s_sc, s_sa, s_wn, s_wc, s_wo, s_wv
 
     def beam_forward(self, wemb_n, l_n, wemb_hpu, l_hpu, l_hs, engine, tb,
@@ -770,13 +770,13 @@ class WVP_se(nn.Module):
         # self.W_n = nn.Linear(hS, hS)
         if old:
             self.wv_out =  nn.Sequential(
-            nn.Linear(4 * hS, 2)
+            nn.Linear(5 * hS, 2)
             )
         else:
             self.wv_out = nn.Sequential(
-                nn.Linear(4 * hS, hS),
+                nn.Linear(5 * hS, hS),
                 nn.Tanh(),
-                nn.Linear(hS, 2)
+                nn.Linear(hS, 2) # 2 because start & end.
             )
         # self.wv_out = nn.Sequential(
         #     nn.Linear(3 * hS, hS),
@@ -786,9 +786,13 @@ class WVP_se(nn.Module):
 
         self.softmax_dim1 = nn.Softmax(dim=1)
         self.softmax_dim2 = nn.Softmax(dim=2)
+        
 
-    def forward(self, wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn, wc, wo, wenc_n=None, show_p_wv=False):
-
+    def forward(self, wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn, wc, wo, wenc_n=None, show_p_wv=False, g_wvi=None):
+        """
+        g_wvi is the NLU label that we are going to pass from the NLU API.  Format: [[[7, 7], [13, 14]]]
+                s_wv = self.wvp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn, wc=pr_wc, wo=pr_wo, show_p_wv=show_p_wv, g_wvi= g_wvi)
+        """
         # Encode
         if not wenc_n:
             wenc_n, hout, cout = encode(self.enc_n, wemb_n, l_n,
@@ -796,7 +800,7 @@ class WVP_se(nn.Module):
                             hc0=None,
                             last_only=False)  # [b, n, dim]
 
-        wenc_hs = encode_hpu(self.enc_h, wemb_hpu, l_hpu, l_hs)  # [b, hs, dim]
+        wenc_hs = encode_hpu(self.enc_h, wemb_hpu, l_hpu, l_hs)  # [b, hs, dim] hs: # of columns
 
         bS = len(l_hs)
 
@@ -808,7 +812,7 @@ class WVP_se(nn.Module):
             real = [wenc_hs[b, col] for col in wc[b]]
             pad = (self.mL_w - wn[b]) * [wenc_hs[b, 0]]  # this padding could be wrong. Test with zero padding later.
             wenc_hs_ob1 = torch.stack(real + pad)  # It is not used in the loss function.
-            wenc_hs_ob.append(wenc_hs_ob1)
+            wenc_hs_ob.append(wenc_hs_ob1) # wenc_hs_ob1 [4, 100]
 
         # list to [B, 4, dim] tensor.
         wenc_hs_ob = torch.stack(wenc_hs_ob)  # list to tensor.
@@ -828,7 +832,7 @@ class WVP_se(nn.Module):
             if l_n1 < mL_n:
                 att[b, :, l_n1:] = -10000000000
 
-        p = self.softmax_dim2(att)  # p( n| selected_col )
+        p = self.softmax_dim2(att)  # p( n | selected_col ) [B, 4 , l_n=16]
 
         if show_p_wv:
             # p = [b, hs, n]
@@ -853,7 +857,7 @@ class WVP_se(nn.Module):
 
         # [B, 1, mL_n, dim] * [B, 4, mL_n, 1]
         #  --> [B, 4, mL_n, dim]
-        #  --> [B, 4, dim]
+        #  --> [B, 4, dim= 100] 
         c_n = torch.mul(wenc_n.unsqueeze(1), p.unsqueeze(3)).sum(dim=2)
 
         # Select observed headers only.
@@ -882,9 +886,34 @@ class WVP_se(nn.Module):
         wenc_op = torch.stack(wenc_op)  # list to tensor.
         wenc_op = wenc_op.to(device)
 
+
+        # Incorporate NLU input. (g_wvi)
+        # data index W
+        self.W_di =nn.Sequential(
+                nn.Linear(mL_n, 4 * self.hS),
+                nn.ReLU(),
+                nn.Linear(4 * self.hS, self.hS)).to(device)
+
+        # make the one-hot based on g_wvi index, same size as wenc_hs_ob.
+        indices = torch.zeros(bS, self.mL_w, mL_n) # mL_n : max length of sentence.
+
+        if g_wvi !=None:
+
+            for batch in range(bS):
+                where_num =0
+                for idx in g_wvi[batch]: #[[7,7],[13,14]]
+                    for start_end in idx: #[7,7]
+                        indices[batch] [where_num] [start_end] =1
+                    where_num +=1
+
+        indices = indices.to(device)
+
+        #import pdb;pdb.set_trace()
+
         # Now after concat, calculate logits for each token
-        # [bS, 5-1, 3*hS] = [bS, 4, 300]
-        vec = torch.cat([self.W_c(c_n), self.W_hs(wenc_hs_ob), self.W_op(wenc_op)], dim=2)
+        # [bS, 5-1, 3*hS] = [bS, 4, 300] ==> [bS, 4, 400]
+        #vec = torch.cat([self.W_c(c_n), self.W_hs(wenc_hs_ob), self.W_op(wenc_op)], dim=2) #  [bS, 4, 300] 
+        vec = torch.cat([self.W_c(c_n), self.W_hs(wenc_hs_ob), self.W_di(indices), self.W_op(wenc_op)], dim=2) #  [bS, 4, 400]
 
         # Make extended vector based on encoded nl token containing column and operator information.
         # wenc_n = [bS, mL, 100]
@@ -901,6 +930,9 @@ class WVP_se(nn.Module):
             if l_n1 < mL_n:
                 s_wv[b, :, l_n1:, :] = -10000000000
         return s_wv
+
+
+
 
 def Loss_sw_se(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv, g_sc, g_sa, g_wn, g_wc, g_wo, g_wvi):
     """
@@ -967,6 +999,7 @@ def Loss_wv_se(s_wv, g_wn, g_wvi):
     s_wv:   [bS, 4, mL, 2], 4 stands for maximum # of condition, 2 tands for start & end logits.
     g_wvi:  [ [1, 3, 2], [4,3] ] (when B=2, wn(b=1) = 3, wn(b=2) = 2).
     """
+    #import pdb;pdb.set_trace()
     loss = 0
     # g_wvi = torch.tensor(g_wvi).to(device)
     for b, g_wvi1 in enumerate(g_wvi):

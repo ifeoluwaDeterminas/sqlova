@@ -3,4 +3,5 @@ wikisql/**/*.pyc
 sqlnet/__pycache__
 bert/__pycache__
 .idea
+*.pyc
 *.swp

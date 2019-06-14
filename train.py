@@ -1,10 +1,13 @@
 # Copyright 2019-present NAVER Corp.
 # Apache License v2.0
 
+
+#import multiprocessing
+#multiprocessing.set_start_method('spawn', True)
 # Wonseok Hwang
 # Sep30, 2018
 import os, sys, argparse, re, json
-
+import pdb
 from matplotlib.pylab import *
 import torch.nn as nn
 import torch
@@ -24,9 +27,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def construct_hyper_param(parser):
     parser.add_argument('--tepoch', default=200, type=int)
-    parser.add_argument("--bS", default=32, type=int,
+    parser.add_argument("--bS", default=1, type=int,
                         help="Batch size")
-    parser.add_argument("--accumulate_gradients", default=1, type=int,
+    parser.add_argument("--accumulate_gradients", default=32, type=int,
                         help="The number of accumulation of backpropagation to effectivly increase the batch size.")
     parser.add_argument('--fine_tune',
                         default=False,
@@ -64,7 +67,7 @@ def construct_hyper_param(parser):
 
     # 1.4 Execution-guided decoding beam-size. It is used only in test.py
     parser.add_argument('--EG',
-                        default=False,
+                        default=True,
                         action='store_true',
                         help="If present, Execution guided decoding is used in test.")
     parser.add_argument('--beam_size',
@@ -232,6 +235,7 @@ def train(train_loader, train_table, model, model_bert, opt, bert_config, tokeni
         # hs_t : tokenized headers. Not used.
 
         g_sc, g_sa, g_wn, g_wc, g_wo, g_wv = get_g(sql_i)
+        
         # get ground truth where-value index under CoreNLP tokenization scheme. It's done already on trainset.
         g_wvi_corenlp = get_g_wvi_corenlp(t)
 
@@ -254,11 +258,11 @@ def train(train_loader, train_table, model, model_bert, opt, bert_config, tokeni
             # During test, that example considered as wrongly answered.
             # e.g. train: 32.
             continue
-
+        #pdb.set_trace()
         # score
         s_sc, s_sa, s_wn, s_wc, s_wo, s_wv = model(wemb_n, l_n, wemb_h, l_hpu, l_hs,
                                                    g_sc=g_sc, g_sa=g_sa, g_wn=g_wn, g_wc=g_wc, g_wvi=g_wvi)
-
+        #pdb.set_trace()
         # Calculate loss & step
         loss = Loss_sw_se(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv, g_sc, g_sa, g_wn, g_wc, g_wo, g_wvi)
 

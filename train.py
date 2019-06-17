@@ -67,7 +67,7 @@ def construct_hyper_param(parser):
 
     # 1.4 Execution-guided decoding beam-size. It is used only in test.py
     parser.add_argument('--EG',
-                        default=True,
+                        default=False,
                         action='store_true',
                         help="If present, Execution guided decoding is used in test.")
     parser.add_argument('--beam_size',
@@ -84,6 +84,7 @@ def construct_hyper_param(parser):
                          'mcS': 'multi_cased_L-12_H-768_A-12'}
     args.bert_type = map_bert_type_abb[args.bert_type_abb]
     print(f"BERT-type: {args.bert_type}")
+    print(f"EG: {args.EG}")
 
     # Decide whether to use lower_case.
     if args.bert_type_abb == 'cS' or args.bert_type_abb == 'cL' or args.bert_type_abb == 'mcS':
@@ -337,7 +338,7 @@ def train(train_loader, train_table, model, model_bert, opt, bert_config, tokeni
     acc_wv = cnt_wv / cnt
     acc_lx = cnt_lx / cnt
     acc_x = cnt_x / cnt
-
+    #import pdb; pdb.set_trace()
     acc = [ave_loss, acc_sc, acc_sa, acc_wn, acc_wc, acc_wo, acc_wvi, acc_wv, acc_lx, acc_x]
 
     aux_out = 1
@@ -447,7 +448,7 @@ def test(data_loader, data_table, model, model_bert, bert_config, tokenizer,
         # score
         if not EG:
             # No Execution guided decoding
-            s_sc, s_sa, s_wn, s_wc, s_wo, s_wv = model(wemb_n, l_n, wemb_h, l_hpu, l_hs)
+            s_sc, s_sa, s_wn, s_wc, s_wo, s_wv = model(wemb_n, l_n, wemb_h, l_hpu, l_hs, g_wvi=g_wvi)
 
             # get loss & step
             loss = Loss_sw_se(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv, g_sc, g_sa, g_wn, g_wc, g_wo, g_wvi)

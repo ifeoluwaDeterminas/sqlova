@@ -820,8 +820,9 @@ class WVP_se(nn.Module):
 
 
         # Column attention
-        # [B, 1, mL_n, dim] * [B, 4, dim, 1]
-        #  -> [B, 4, mL_n, 1] -> [B, 4, mL_n]
+        # [hs, hs] * [B, mL_n, hs] -> [B, mL_n, hs] -> [B, 1, mL_n, hs]            # [B, 1, mL_n, dim] * [B, 4, dim, 1]
+        # wenc_hs_ob:[b, 4, hs]. wenc_hs_ob.unsqueeze(3):[b, 4, hs, 1]. [B, 1, mL_n, hs]*[b, 4, hs, 1] -> [B, 4, mL_n, 1] 
+        # -> [B, 4, mL_n]
         # multiplication bewteen NLq-tokens and  selected column
         att = torch.matmul(self.W_att(wenc_n).unsqueeze(1),
                            wenc_hs_ob.unsqueeze(3)

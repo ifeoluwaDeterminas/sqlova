@@ -1640,16 +1640,16 @@ def get_cnt_lx_list(cnt_sc1, cnt_sa1, cnt_wn1, cnt_wc1, cnt_wo1, cnt_wv1):
             cnt_list.append(1)
         else:
             cnt_list.append(0)
-
+    #import pdb;pdb.set_trace()
     return cnt_list
 
 
 def get_cnt_x_list(engine, tb, g_sc, g_sa, g_sql_i, pr_sc, pr_sa, pr_sql_i):
     cnt_x1_list = []
-    g_ans = []
+    g_ans = [] # [['porcelain s figurine']]
     pr_ans = []
     for b in range(len(g_sc)):
-        g_ans1 = engine.execute(tb[b]['id'], g_sc[b], g_sa[b], g_sql_i[b]['conds'])
+        g_ans1 = engine.execute(tb[b]['id'], g_sc[b], g_sa[b], g_sql_i[b]['conds']) # ['porcelain s figurine']
         # print(f'cnt: {cnt}')
         # print(f"pr_sql_i: {pr_sql_i[b]['conds']}")
         try:
@@ -1669,7 +1669,7 @@ def get_cnt_x_list(engine, tb, g_sc, g_sa, g_sql_i, pr_sc, pr_sa, pr_sql_i):
         cnt_x1_list.append(cnt_x1)
         g_ans.append(g_ans1)
         pr_ans.append(pr_ans1)
-
+        #import pdb;pdb.set_trace()
     return cnt_x1_list, g_ans, pr_ans
 
 def get_mean_grad(named_parameters):

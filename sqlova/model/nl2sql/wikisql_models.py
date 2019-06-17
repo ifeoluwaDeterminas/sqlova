@@ -84,7 +84,7 @@ class Seq2SQL_v1(nn.Module):
             pr_wo = pred_wo(pr_wn, s_wo)
 
         # wv
-        s_wv = self.wvp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn, wc=pr_wc, wo=pr_wo, show_p_wv=show_p_wv)
+        s_wv = self.wvp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn, wc=pr_wc, wo=pr_wo, show_p_wv=show_p_wv, g_wvi= g_wvi)
 
         return s_sc, s_sa, s_wn, s_wc, s_wo, s_wv
 
@@ -787,8 +787,30 @@ class WVP_se(nn.Module):
         self.softmax_dim1 = nn.Softmax(dim=1)
         self.softmax_dim2 = nn.Softmax(dim=2)
 
-    def forward(self, wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn, wc, wo, wenc_n=None, show_p_wv=False):
+    def forward(self, wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn, wc, wo, wenc_n=None, show_p_wv=False, g_wvi = None):
+        bS = len(l_hs)
+        mL_n = max(l_n)
 
+        indices = torch.zeros(bS, self.mL_w, mL_n, 2) # mL_n : max length of sentence.
+
+        if g_wvi !=None:
+
+            for batch in range(bS):
+                where_num =0
+                for idx in g_wvi[batch]:  # g_wvi[batch] = [[7,7],[13,14]]
+                    # idx = [7,7]
+                    start = idx[0]
+                    end = idx[1]
+                    indices[batch] [where_num] [start] [0] = 1
+                    indices[batch] [where_num] [end] [1] = 1
+                    where_num +=1
+
+        indices = indices.to(device)
+        #[bS, 4, mL, 2]
+        #s_wv = F.softmax(indices, dim=3) # exp1
+        s_wv = indices # exp2
+        #import pdb; pdb.set_trace()
+        """
         # Encode
         if not wenc_n:
             wenc_n, hout, cout = encode(self.enc_n, wemb_n, l_n,
@@ -900,6 +922,7 @@ class WVP_se(nn.Module):
         for b, l_n1 in enumerate(l_n):
             if l_n1 < mL_n:
                 s_wv[b, :, l_n1:, :] = -10000000000
+        """
         return s_wv
 
 def Loss_sw_se(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv, g_sc, g_sa, g_wn, g_wc, g_wo, g_wvi):

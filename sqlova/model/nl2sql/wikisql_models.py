@@ -49,7 +49,7 @@ class Seq2SQL_v1(nn.Module):
             pr_sc = g_sc
         else:
             pr_sc = pred_sc(s_sc)
-
+        #import pdb; pdb.set_trace()
         # sa
         s_sa = self.sap(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, pr_sc, show_p_sa=show_p_sa)
         if g_sa:
@@ -309,10 +309,10 @@ class SCP(nn.Module):
         wenc_n = encode(self.enc_n, wemb_n, l_n,
                         return_hidden=False,
                         hc0=None,
-                        last_only=False)  # [b, n, dim]
+                        last_only=False)  # [b, max(l_n), dim]
 
-        wenc_hs = encode_hpu(self.enc_h, wemb_hpu, l_hpu, l_hs)  # [b, hs, dim]
-
+        wenc_hs = encode_hpu(self.enc_h, wemb_hpu, l_hpu, l_hs)  # [b, max(hs), dim]
+        import pdb; pdb.set_trace()
         bS = len(l_hs)
         mL_n = max(l_n)
 

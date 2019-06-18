@@ -312,7 +312,7 @@ class SCP(nn.Module):
                         last_only=False)  # [b, max(l_n), dim]
 
         wenc_hs = encode_hpu(self.enc_h, wemb_hpu, l_hpu, l_hs)  # [b, max(hs), dim]
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         bS = len(l_hs)
         mL_n = max(l_n)
 
@@ -891,25 +891,32 @@ class WVP_se(nn.Module):
         # Incorporate NLU input. (g_wvi)
         # data index W
         self.W_di =nn.Sequential(
-                nn.Linear(mL_n, 4 * self.hS),
+                nn.Linear(mL_n * 2, 1024),
                 nn.ReLU(),
-                nn.Linear(4 * self.hS, self.hS)).to(device)
+                nn.Linear(1024, self.hS)).to(device)
 
         # make the one-hot based on g_wvi index, same size as wenc_hs_ob.
-        indices = torch.zeros(bS, self.mL_w, mL_n) # mL_n : max length of sentence.
+        bS = len(l_hs)
+        mL_n = max(l_n)
+
+        indices = torch.zeros(bS, self.mL_w, mL_n, 2) # mL_n : max length of sentence.
 
         if g_wvi !=None:
 
             for batch in range(bS):
                 where_num =0
-                for idx in g_wvi[batch]: #[[7,7],[13,14]]
-                    for start_end in idx: #[7,7]
-                        indices[batch] [where_num] [start_end] =1
+                for idx in g_wvi[batch]:  # g_wvi[batch] = [[7,7],[13,14]]
+                    # idx = [7,7]
+                    start = idx[0]
+                    end = idx[1]
+                    indices[batch] [where_num] [start] [0] = 1
+                    indices[batch] [where_num] [end] [1] = 1
                     where_num +=1
 
-        indices = indices.to(device)
-
+        indices = indices.to(device) #[bS, 4, mL, 2]
         #import pdb;pdb.set_trace()
+
+        indices = indices.view(bS, self.mL_w, mL_n * 2)        
 
         # Now after concat, calculate logits for each token
         # [bS, 5-1, 3*hS] = [bS, 4, 300] ==> [bS, 4, 400]

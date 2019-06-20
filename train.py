@@ -187,7 +187,7 @@ def get_models(args, BERT_PT_PATH, trained=False, path_model_bert=None, path_mod
         else:
             res = torch.load(path_model, map_location='cpu')
 
-        model.load_state_dict(res['model'])
+        model.load_state_dict(res['model'], strict=False)
 
     return model, model_bert, tokenizer, bert_config
 
@@ -413,7 +413,6 @@ def test(data_loader, data_table, model, model_bert, bert_config, tokenizer,
     engine = DBEngine(os.path.join(path_db, f"{dset_name}.db"))
     results = []
     for iB, t in enumerate(data_loader):
-
         cnt += len(t)
         if cnt < st_pos:
             continue

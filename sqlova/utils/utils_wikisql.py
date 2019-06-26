@@ -977,11 +977,13 @@ def pred_wc(wn, s_wc):
 
 def pred_wc_api_topN(wn, s_wc, n):
     pr_wc = []
-    arr =  s_wc.cpu().data.numpy()
-    idx = (-arr[0]).argsort()[:n]
-    for ix in idx:
-        pr_wc.append((ix, arr[0][ix]))
-    return pr_wc
+    #import pdb;pdb.set_trace()
+    for b, wn1 in enumerate([n]):
+        s_wc1 = s_wc[b]
+        pr_wc1 = argsort(-s_wc1.data.cpu().numpy())[:wn1]
+        pr_wc1.sort()
+        pr_wc.append(list(pr_wc1))
+    return list(pr_wc)
 
 
 def pred_wc_sorted_by_prob(s_wc):
@@ -1154,6 +1156,7 @@ def pred_sw_se(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv):
 
 
 def pred_sw_se_api_topN(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv, n):
+    
     pr_sc = pred_sc_api_topN(s_sc, n)
     pr_sa = pred_sa(s_sa)
     pr_wn = pred_wn(s_wn)

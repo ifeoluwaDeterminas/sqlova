@@ -43,8 +43,6 @@ def predict(data, model, model_bert, bert_config, tokenizer, max_seq_length, num
     pr_sql_i = generate_sql_i_api_topN(pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wv_str, nlu, n)
     #pr_sql_q = generate_sql_q(pr_sql_i, tb)
 
-
-
     return pr_sql_i
 
 
@@ -70,10 +68,13 @@ model, model_bert, tokenizer, bert_config = get_models(args, BERT_PT_PATH, train
 # Input format
 """
 data = {"question": "What is terrence ross' nationality", "header": ["Player", "No.", "Nationality", "Position", "Years in Toronto", "School/Club Team"], "types": ["text", "text", "text", "text", "text", "text"], "data_ix":[[2,3]], "n": 3}
-"""
-
 data ={"question": "Give me a list of account name under Renee Lo.", "header": ["account name, account", "created on", "account id", "activate state", "revenue", "country/region", "state/povince", "city", "phone, telephone", "email address", "secondary email address", "industry", "number of employees", "description/detail", "web site, url", "contact name", "owner, owning user, account manager"], "types": ["text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "number", "text", "text", "text", "text"], "data_ix":[[8,9]], "n": 3}
 
+"""
+
+
+
+data = {"question": "List out the number of Accounts owned by Microsoft in USA?", "header": ["account name, account", "created on", "account id", "activate state", "revenue", "country/region", "state/povince", "city", "phone, telephone", "email address", "secondary email address", "industry", "number of employees", "description/detail", "web site, url", "contact name", "owner, owning user, account manager"], "types": ["text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "number", "text", "text", "text", "text"], "data_ix":[[8,8],[10,10]], "n": 3}
 
 # Prediction
 with torch.no_grad():

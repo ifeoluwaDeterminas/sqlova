@@ -50,6 +50,29 @@ def predict(data_loader, data_table, model, model_bert, bert_config, tokenizer,
     engine = DBEngine(os.path.join(path_db, f"{dset_name}.db"))
     results = []
     for iB, t in enumerate(data_loader):
+        """
+        (Pdb) pr_sql_i
+        [{'agg': 0, 'sel': 2, 'conds': [[0, 0, 'terrence ross']]}, {'agg': 0, 'sel': 2, 'conds': [[4, 0, '1995-96']]}]
+
+        (Pdb) pr_sql_q
+        ['SELECT (Nationality) FROM 1-10015132-16 WHERE Player = terrence ross', 'SELECT (Nationality) FROM 1-10015132-16 WHERE Years in Toronto = 1995-96']
+    
+        (Pdb) nlu_t
+        [['What', 'is', 'terrence', 'ross', "'", 'nationality'], ['What', 'clu', 'was', 'in', 'toronto', '1995-96']]
+
+        (Pdb) hds
+        [['Player', 'No.', 'Nationality', 'Position', 'Years in Toronto', 'School/Club Team'], ['Player', 'No.', 'Nationality', 'Position', 'Years in Toronto', 'School/Club Team']]
+
+        (Pdb) nlu
+        ["What is terrence ross' nationality", 'What clu was in toronto 1995-96']
+
+        (Pdb) t[0]
+        {'table_id': '1-10015132-16', 'phase': 1, 'question': "What is terrence ross' nationality", 'question_tok': ['What', 'is', 'terrence', 'ross', "'", 'nationality'], 'sql': {'sel': 2, 'conds': [[0, 0, 'Terrence Ross']], 'agg': 0}, 'query': {'sel': 2, 'conds': [[0, 0, 'Terrence Ross']], 'agg': 0}, 'wvi_corenlp': [[2, 3]]}
+
+        (Pdb) tb[0]
+        {'header': ['Player', 'No.', 'Nationality', 'Position', 'Years in Toronto', 'School/Club Team'], 'page_title': 'Toronto Raptors all-time roster', 'types': ['text', 'text', 'text', 'text', 'text', 'text'], 'id': '1-10015132-16', 'section_title': 'R', 'caption': 'R', 'rows': [['Aleksandar Radojević', '25', 'Serbia', 'Center', '1999-2000', 'Barton CC (KS)'], ['Shawn Respert', '31', 'United States', 'Guard', '1997-98', 'Michigan State'], ['Quentin Richardson', 'N/A', 'United States', 'Forward', '2013-present', 'DePaul'], ['Alvin Robertson', '7, 21', 'United States', 'Guard', '1995-96', 'Arkansas'], ['Carlos Rogers', '33, 34', 'United States', 'Forward-Center', '1995-98', 'Tennessee State'], ['Roy Rogers', '9', 'United States', 'Forward', '1998', 'Alabama'], ['Jalen Rose', '5', 'United States', 'Guard-Forward', '2003-06', 'Michigan'], ['Terrence Ross', '31', 'United States', 'Guard', '2012-present', 'Washington']], 'name': 'table_10015132_16'}
+      
+        """
         nlu, nlu_t, sql_i, sql_q, sql_t, tb, hs_t, hds = get_fields(t, data_table, no_hs_t=True, no_sql_t=True)
         g_sc, g_sa, g_wn, g_wc, g_wo, g_wv = get_g(sql_i)
         g_wvi_corenlp = get_g_wvi_corenlp(t)
@@ -86,7 +109,7 @@ def predict(data_loader, data_table, model, model_bert, bert_config, tokenizer,
             results1["nlu"] = nlu[b]
             results1["sql"] = pr_sql_q1
             results.append(results1)
-
+        #import pdb;pdb.set_trace()
     return results
 
 ## Set up hyper parameters and paths

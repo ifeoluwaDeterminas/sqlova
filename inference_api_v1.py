@@ -7,13 +7,6 @@
 #    - bert_config_uncased_*.json
 #    - vocab_uncased_*.txt
 
-# Data you need:
-#    - <split>.db
-#    - <split>.jsonl
-#    - <split>.tables.jsonl
-#    - <split>_tok.jsonl         # derived using annotate_ws.py
-
-
 import argparse, os
 from sqlnet.dbengine import DBEngine
 from sqlova.utils.utils_wikisql import *
@@ -30,19 +23,33 @@ def predict(data, model, model_bert, bert_config, tokenizer, max_seq_length, num
     hds = [data['header']]
     types = [data['types']]
     nlu = [data['question']]
-    nlu_t = [nlu[0].split()]
+    nlu_t = [nlu[0].rstrip().replace('?', '').split(' ')] 
+    n = data['n']
     #tb = 
     
     wemb_n, wemb_h, l_n, l_hpu, l_hs, nlu_tt, t_to_tt_idx, tt_to_t_idx = get_wemb_bert(bert_config, model_bert, tokenizer, nlu_t, hds, max_seq_length, num_out_layers_n=num_target_layers, num_out_layers_h=num_target_layers)
 
     # No Execution guided decoding
     s_sc, s_sa, s_wn, s_wc, s_wo, s_wv = model(wemb_n, l_n, wemb_h, l_hpu, l_hs, g_wvi=g_wvi)
-    pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wvi = pred_sw_se(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv, )
+    
+    # normalize the score
+    s_sc = F.softmax(s_sc, dim=1)
+    s_wc = F.softmax(s_sc, dim=1)
+
+    pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wvi = pred_sw_se_api_topN(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv, n)
+
     pr_wv_str, pr_wv_str_wp = convert_pr_wvi_to_string(pr_wvi, nlu_t, nlu_tt, tt_to_t_idx, nlu)
-    pr_sql_i = generate_sql_i(pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wv_str, nlu)
+
+    pr_sql_i = generate_sql_i_api_topN(pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wv_str, nlu, n)
     #pr_sql_q = generate_sql_q(pr_sql_i, tb)
 
+
+
     return pr_sql_i
+
+
+
+
 
 
 ## Set up hyper parameters and paths
@@ -61,7 +68,11 @@ model, model_bert, tokenizer, bert_config = get_models(args, BERT_PT_PATH, train
 
 
 # Input format
-data = {"question": "What is terrence ross' nationality", "header": ["Player", "No.", "Nationality", "Position", "Years in Toronto", "School/Club Team"], "types": ["text", "text", "text", "text", "text", "text"], "data_ix":[[2,3]]}
+"""
+data = {"question": "What is terrence ross' nationality", "header": ["Player", "No.", "Nationality", "Position", "Years in Toronto", "School/Club Team"], "types": ["text", "text", "text", "text", "text", "text"], "data_ix":[[2,3]], "n": 3}
+"""
+
+data ={"question": "Give me a list of account name under Renee Lo.", "header": ["account name, account", "created on", "account id", "activate state", "revenue", "country/region", "state/povince", "city", "phone, telephone", "email address", "secondary email address", "industry", "number of employees", "description/detail", "web site, url", "contact name", "owner, owning user, account manager"], "types": ["text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "number", "text", "text", "text", "text"], "data_ix":[[8,9]], "n": 3}
 
 
 # Prediction

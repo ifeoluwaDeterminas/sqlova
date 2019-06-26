@@ -43,7 +43,14 @@ def load_wikisql(path_wikisql, toy_model, toy_size, bert=False, no_w2i=False, no
 
 def load_wikisql_data(path_wikisql, mode='train', toy_model=False, toy_size=10, no_hs_tok=False, aug=False):
     """ Load training sets
+
+    (Pdb) data[0]
+    {'table_id': '1-1000181-1', 'phase': 1, 'question': 'Tell me what the notes are for South Australia ', 'question_tok': ['Tell', 'me', 'what', 'the', 'notes', 'are', 'for', 'South', 'Australia'], 'sql': {'sel': 5, 'conds': [[3, 0, 'SOUTH AUSTRALIA']], 'agg': 0}, 'query': {'sel': 5, 'conds': [[3, 0, 'SOUTH AUSTRALIA']], 'agg': 0}, 'wvi_corenlp': [[7, 8]]}
+
+    (Pdb) table['2-19008977-1']
+    {'header': ['Name', 'Premier League', 'League Cup', 'FA Cup', 'UEFA Cup', 'Total'], 'page_title': '2008–09 Everton F.C. season', 'types': ['text', 'real', 'real', 'real', 'real', 'real'], 'page_id': 19008977, 'id': '2-19008977-1', 'section_title': 'Goalscorers', 'rows': [['Tim Cahill Category:Articles with hCards', '8', '0', '1', '0', '9'], ['Marouane Fellaini Category:Articles with hCards', '8', '0', '1', '0', '9'], ['Louis Saha Category:Articles with hCards', '6', '0', '2', '0', '8'], ['Mikel Arteta Category:Articles with hCards', '6', '0', '1', '0', '7'], ['Leon Osman Category:Articles with hCards', '6', '0', '1', '0', '7'], ['Jô Category:Articles with hCards', '5', '0', '0', '0', '5'], ['Yakubu Aiyegbeni Category:Articles with hCards', '4', '0', '0', '1', '5'], ['Joleon Lescott Category:Articles with hCards', '4', '0', '1', '0', '5'], ['Steven Pienaar Category:Articles with hCards', '3', '0', '0', '0', '3'], ['Dan Gosling Category:Articles with hCards', '2', '0', '1', '0', '3'], ['Victor Anichebe Category:Articles with hCards', '1', '0', '0', '0', '1'], ['Leighton Baines Category:Articles with hCards', '1', '0', '0', '0', '1'], ['Segundo Castillo Category:Articles with hCards', '0', '0', '0', '1', '1'], ['Phil Jagielka Category:Articles with hCards', '0', '0', '0', '1', '1'], ['Joseph Yobo Category:Articles with hCards', '1', '0', '0', '0', '1'], ['Own Goal Category:Articles with hCards', '1', '0', '0', '0', '1']], 'caption': 'Goalscorers'}
     """
+    
     if aug:
         mode = f"aug.{mode}"
         print('Augmented data is loaded!')
@@ -71,7 +78,6 @@ def load_wikisql_data(path_wikisql, mode='train', toy_model=False, toy_size=10, 
 
             t1 = json.loads(line.strip())
             table[t1['id']] = t1
-
     return data, table
 
 
@@ -885,8 +891,16 @@ def pred_sc(s_sc):
     pr_sc = []
     for s_sc1 in s_sc:
         pr_sc.append(s_sc1.argmax().item())
-
     return pr_sc
+
+def pred_sc_api_topN(s_sc, n):
+    pr_sc = []
+    arr =  s_sc.cpu().data.numpy()
+    idx = (-arr[0]).argsort()[:n]
+    for ix in idx:
+        pr_sc.append((ix, arr[0][ix]))
+    return pr_sc
+
 
 def pred_sc_beam(s_sc, beam_size):
     """
@@ -959,6 +973,16 @@ def pred_wc(wn, s_wc):
 
         pr_wc.append(list(pr_wc1))
     return pr_wc
+
+
+def pred_wc_api_topN(wn, s_wc, n):
+    pr_wc = []
+    arr =  s_wc.cpu().data.numpy()
+    idx = (-arr[0]).argsort()[:n]
+    for ix in idx:
+        pr_wc.append((ix, arr[0][ix]))
+    return pr_wc
+
 
 def pred_wc_sorted_by_prob(s_wc):
     """
@@ -1083,10 +1107,8 @@ def is_whitespace_g_wvi(c):
     return False
 
 def convert_pr_wvi_to_string(pr_wvi, nlu_t, nlu_wp_t, wp_to_wh_index, nlu):
-    """
-    - Convert to the string in whilte-space-separated tokens
-    - Add-hoc addition.
-    """
+    """- Convert to the string in whilte-space-separated tokens
+    - Add-hoc addition."""
     pr_wv_str_wp = [] # word-piece version
     pr_wv_str = []
     for b, pr_wvi1 in enumerate(pr_wvi):
@@ -1123,6 +1145,19 @@ def pred_sw_se(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv):
     pr_sa = pred_sa(s_sa)
     pr_wn = pred_wn(s_wn)
     pr_wc = pred_wc(pr_wn, s_wc)
+    pr_wo = pred_wo(pr_wn, s_wo)
+    pr_wvi = pred_wvi_se(pr_wn, s_wv)
+
+    return pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wvi
+
+
+
+
+def pred_sw_se_api_topN(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv, n):
+    pr_sc = pred_sc_api_topN(s_sc, n)
+    pr_sa = pred_sa(s_sa)
+    pr_wn = pred_wn(s_wn)
+    pr_wc = pred_wc_api_topN(pr_wn, s_wc, n)
     pr_wo = pred_wo(pr_wn, s_wo)
     pr_wvi = pred_wvi_se(pr_wn, s_wv)
 
@@ -1710,6 +1745,27 @@ def generate_sql_i(pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wv_str, nlu):
         pr_sql_i1 = {'agg': pr_sa[b], 'sel': pr_sc[b], 'conds': conds}
         pr_sql_i.append(pr_sql_i1)
     return pr_sql_i
+
+
+
+def generate_sql_i_api_topN(pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wv_str, nlu, n):
+    pr_sql_i = []
+    for b, nlu1 in enumerate(nlu):
+        conds = []
+        for i_wn in range(pr_wn[b]):
+            conds1 = []
+            conds1.append(pr_wc[b][i_wn])
+            conds1.append(pr_wo[b][i_wn])
+            merged_wv11 = merge_wv_t1_eng(pr_wv_str[b][i_wn], nlu[b])
+            conds1.append(merged_wv11)
+            conds.append(conds1)
+
+        pr_sql_i1 = {'agg': pr_sa[b], 'sel': pr_sc, 'conds': conds}
+        pr_sql_i.append(pr_sql_i1)
+
+    #import pdb;pdb.set_trace()
+    return pr_sql_i
+
 
 
 def save_for_evaluation(path_save, results, dset_name, ):

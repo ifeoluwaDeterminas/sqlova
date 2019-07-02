@@ -88,7 +88,7 @@ def predict(data_loader, data_table, model, model_bert, bert_config, tokenizer,
             pr_sql_i = generate_sql_i(pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wv_str, nlu)
         else:
             # Execution guided decoding
-            prob_sca, prob_w, prob_wn_w, pr_sc, pr_sa, pr_wn, pr_sql_i = model.beam_forward(wemb_n, l_n, wemb_h, l_hpu,
+            prob_sca, prob_w, prob_wn_w, pr_sc, pr_sa, pr_wn, pr_sql_i = model.beam_forward_sqlmax(wemb_n, l_n, wemb_h, l_hpu,
                                                                                             l_hs, engine, tb,
                                                                                             nlu_t, nlu_tt,
                                                                                             tt_to_t_idx, nlu,

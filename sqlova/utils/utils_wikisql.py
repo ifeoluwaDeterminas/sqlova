@@ -485,6 +485,12 @@ def tokenize_hds1(tokenizer, hds1):
         hds_all_tok.append(sub_tok)
 
 def generate_inputs(tokenizer, nlu1_tok, hds1):
+    """
+    (Pdb) hds1
+    ['Player', 'No.', 'Nationality', 'Position', 'Years in Toronto', 'School/Club Team']
+    (Pdb) nlu1_tok
+    ['what', 'position', 'does', 'the', 'player', 'who', 'played', 'for', 'butler', 'cc', '(', 'ks', ')', 'play', '?']
+    """
     tokens = []
     segment_ids = []
 
@@ -500,11 +506,12 @@ def generate_inputs(tokenizer, nlu1_tok, hds1):
     segment_ids.append(0)
 
     i_hds = []
+    #import pdb;pdb.set_trace()
     # for doc
     for i, hds11 in enumerate(hds1):
         i_st_hd = len(tokens)
         sub_tok = tokenizer.tokenize(hds11)
-        tokens += sub_tok
+        tokens += sub_tok # ['no', '.']
         i_ed_hd = len(tokens)
         i_hds.append((i_st_hd, i_ed_hd))
         segment_ids += [1] * len(sub_tok)
@@ -518,7 +525,10 @@ def generate_inputs(tokenizer, nlu1_tok, hds1):
             raise EnvironmentError
 
     i_nlu = (i_st_nlu, i_ed_nlu)
-
+    """
+    i_nlu: (1, 16), 
+    i_hds: [(17, 18), (19, 21), (22, 23), (24, 25), (26, 29), (30, 34)])
+    """
     return tokens, segment_ids, i_nlu, i_hds
 
 def gen_l_hpu(i_hds):
@@ -687,13 +697,14 @@ def get_bert_output(model_bert, tokenizer, nlu_t, hds, max_seq_length):
     input_mask = []
 
     i_nlu = []  # index to retreive the position of contextual vector later.
-    i_hds = []
+    i_hds = []  # what is this?
 
     doc_tokens = []
     nlu_tt = []
 
     t_to_tt_idx = []
     tt_to_t_idx = []
+    
     for b, nlu_t1 in enumerate(nlu_t):
 
         hds1 = hds[b]
@@ -719,12 +730,23 @@ def get_bert_output(model_bert, tokenizer, nlu_t, hds, max_seq_length):
         #         hds1_all_tok = tokenize_hds1(tokenizer, hds1)
 
 
-
         # [CLS] nlu [SEP] col1 [SEP] col2 [SEP] ...col-n [SEP]
         # 2. Generate BERT inputs & indices.
         tokens1, segment_ids1, i_nlu1, i_hds1 = generate_inputs(tokenizer, nlu_tt1, hds1)
         input_ids1 = tokenizer.convert_tokens_to_ids(tokens1)
+        """
+        (Pdb) tokens1
+        ['[CLS]', 'what', 'position', 'does', 'the', 'player', 'who', 'played', 'for', 'butler', 'cc', '(', 'ks', ')', 'play', '?', '[SEP]', 'player', '[SEP]', 'no', '.', '[SEP]', 'nationality', '[SEP]', 'position', '[SEP]', 'years', 'in', 'toronto', '[SEP]', 'school', '/', 'club', 'team', '[SEP]']
+        (Pdb) segment_ids1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1]
+        (Pdb) i_nlu1
+        (1, 16)
+        (Pdb) i_hds1
+        [(17, 18), (19, 21), (22, 23), (24, 25), (26, 29), (30, 34)]        
 
+        (Pdb) input_ids1
+        [101, 2054, 2597, 2515, 1996, 2447, 2040, 2209, 2005, 7055, 10507, 1006, 29535, 1007, 2377, 1029, 102, 2447, 102, 2053, 1012, 102, 10662, 102, 2597, 102, 2086, 1999, 4361, 102, 2082, 1013, 2252, 2136, 102]
+        """
         # Input masks
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
         # tokens are attended to.
@@ -749,15 +771,15 @@ def get_bert_output(model_bert, tokenizer, nlu_t, hds, max_seq_length):
         i_hds.append(i_hds1)
 
     # Convert to tensor
-    all_input_ids = torch.tensor(input_ids, dtype=torch.long).to(device)
+    all_input_ids = torch.tensor(input_ids, dtype=torch.long).to(device) # [1,222]
     all_input_mask = torch.tensor(input_mask, dtype=torch.long).to(device)
     all_segment_ids = torch.tensor(segment_ids, dtype=torch.long).to(device)
 
     # 4. Generate BERT output.
     all_encoder_layer, pooled_output = model_bert(all_input_ids, all_segment_ids, all_input_mask)
-
+    # import pdb; pdb.set_trace()
     # 5. generate l_hpu from i_hds
-    l_hpu = gen_l_hpu(i_hds)
+    l_hpu = gen_l_hpu(i_hds) # [1, 2, 1, 1, 3, 4] length of (sub)tokens
 
     return all_encoder_layer, pooled_output, tokens, i_nlu, i_hds, \
            l_n, l_hpu, l_hs, \
@@ -825,8 +847,9 @@ def get_wemb_bert(bert_config, model_bert, tokenizer, nlu_t, hds, max_seq_length
     # pooled_output: output of [CLS] vec.
     # tokens: BERT intput tokens
     # i_nlu: start and end indices of question in tokens
-    # i_hds: start and end indices of headers
-
+    # [(1, 16)]
+    # i_hds: start and end indices of headers 
+    # # [[(17, 18), (19, 21), (22, 23), (24, 25), (26, 29), (30, 34)]]
 
     # get the wemb
     wemb_n = get_wemb_n(i_nlu, l_n, bert_config.hidden_size, bert_config.num_hidden_layers, all_encoder_layer,
@@ -977,7 +1000,7 @@ def pred_wc(wn, s_wc):
 
 def pred_wc_api_topN(wn, s_wc, n):
     pr_wc = []
-    #import pdb;pdb.set_trace()
+    import pdb;pdb.set_trace()
     for b, wn1 in enumerate([n]):
         s_wc1 = s_wc[b]
         pr_wc1 = argsort(-s_wc1.data.cpu().numpy())[:wn1]
@@ -1796,6 +1819,7 @@ def check_sc_sa_pairs(tb, pr_sc, pr_sa, ):
     agg_ops = ['', 'MAX', 'MIN', 'COUNT', 'SUM', 'AVG']
 
     """
+    #import pdb;pdb.set_trace()
     bS = len(pr_sc)
     check = [False] * bS
     for b, pr_sc1 in enumerate(pr_sc):
@@ -1814,6 +1838,48 @@ def check_sc_sa_pairs(tb, pr_sc, pr_sa, ):
             raise Exception("New TYPE!!")
 
     return check
+
+
+def check_sc_sa_pairs_sqlmax(tb, pr_sc, pr_sa, ):
+    """
+    Check whether pr_sc, pr_sa are allowed pairs or not.
+    Text can't be paired with MIN/MAX.
+    agg_ops = ['', 'MAX', 'MIN', 'COUNT', 'SUM', 'AVG']
+    """
+    #import pdb;pdb.set_trace()
+    
+    beam_size = pr_sc.shape[1]
+    bS = len(pr_sc)
+    ix=0
+    check = []
+    
+    # TODO: Later when there is batch size is not 1.
+    b=0
+
+    for sc_batch, sa_batch in zip(pr_sc, pr_sa):
+        for sc_topN, sa_topN in zip(sc_batch, sa_batch):
+            
+            pr_sc1 = sc_topN
+            pr_sa1 = sa_topN
+            #import pdb;pdb.set_trace() 
+
+            hd_types1 = tb[b]['types']
+            hd_types11 = hd_types1[int(pr_sc1)]
+            if hd_types11 == 'text':
+                if pr_sa1 == 0 or pr_sa1 == 3: # ''
+                    check.append( True)
+                else:
+                    check.append(False)
+
+            elif hd_types11 == 'real':
+                check.append( True)
+            else:
+                raise Exception("New TYPE!!")
+        b+=1
+    
+    assert (len(check) == pr_sc.size), "check length differs!"
+    return check
+
 
 
 def remap_sc_idx(idxs, pr_sc_beam):

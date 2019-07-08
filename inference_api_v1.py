@@ -25,7 +25,7 @@ def predict(data, model, model_bert, bert_config, tokenizer, max_seq_length, num
     nlu = [data['question']]
     nlu_t = [nlu[0].rstrip().replace('?', '').split(' ')] 
     n = data['n']
-    #tb = 
+    #tb
     
     wemb_n, wemb_h, l_n, l_hpu, l_hs, nlu_tt, t_to_tt_idx, tt_to_t_idx = get_wemb_bert(bert_config, model_bert, tokenizer, nlu_t, hds, max_seq_length, num_out_layers_n=num_target_layers, num_out_layers_h=num_target_layers)
 

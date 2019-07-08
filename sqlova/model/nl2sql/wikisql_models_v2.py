@@ -17,9 +17,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from sqlova.utils.utils import topk_multi_dim
 from sqlova.utils.utils_wikisql import *
 
-class Seq2SQL_v1(nn.Module):
+class Seq2SQL_v2(nn.Module):
     def __init__(self, iS, hS, lS, dr, n_cond_ops, n_agg_ops, old=False):
-        super(Seq2SQL_v1, self).__init__()
+        super(Seq2SQL_v2, self).__init__()
         self.iS = iS
         self.hS = hS
         self.ls = lS
@@ -289,7 +289,7 @@ class Seq2SQL_v1(nn.Module):
         return prob_sca, prob_w, prob_wn_w, pr_sc_best, pr_sa_best, pr_wn_based_on_prob, pr_sql_i
 
 
-    def beam_forward_sqlmax(self, wemb_n, l_n, wemb_hpu, l_hpu, l_hs, engine, tb,
+    def beam_forward_sqlmax(self, wemb_n, l_n, wemb_hpu, l_hpu, l_hs,
                      nlu_t, nlu_wp_t, wp_to_wh_index, nlu,
                      beam_size=6,
                      show_p_sc=False, show_p_sa=False,
@@ -346,7 +346,7 @@ class Seq2SQL_v1(nn.Module):
         pr_sa = idxs_arr[:,:,1:] #[bs, 4(beam_size), 1] # 2nd item in -1 dim 
         pr_sc_flatten = list(pr_sc.flatten())
         pr_sa_flatten = list(pr_sa.flatten())
-
+        """
         check = check_sc_sa_pairs_sqlmax(tb, pr_sc, pr_sa)
         
         ###########################
@@ -365,7 +365,7 @@ class Seq2SQL_v1(nn.Module):
 
         pr_sc_best = [i for i in pr_sc_flatten if i!=-1] 
         pr_sa_best = [i for i in pr_sa_flatten if i!=-1] 
-
+        """
         #TODO: SCORE AS WELL.
 
         #import pdb; pdb.set_trace()
@@ -416,8 +416,9 @@ class Seq2SQL_v1(nn.Module):
         pr_wn_max = [self.max_wn] * bS  # penhe max_wn + 2
         pr_wc_max = pred_wc_sorted_by_prob(s_wc) # if some column do not have executable where-claouse, omit that column
         prob_wc_max = zeros([bS, self.max_wn]) # penhe max_wn + 2
+        #import pdb;pdb.set_trace()
         for b, pr_wc_max1 in enumerate(pr_wc_max):
-            prob_wc_max[b,:] = prob_wc[b,pr_wc_max1]
+            prob_wc_max[b,:] = prob_wc[b,pr_wc_max1[:self.max_wn]]
 
         # get most probable max_wn where-clouses
         # wo
@@ -1273,8 +1274,6 @@ class WVP_se(nn.Module):
             if l_n1 < mL_n:
                 s_wv[b, :, l_n1:, :] = -10000000000
         return s_wv
-
-
 
 
 def Loss_sw_se(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv, g_sc, g_sa, g_wn, g_wc, g_wo, g_wvi):

@@ -21,6 +21,7 @@ from bert.modeling import BertConfig, BertModel
 
 from sqlova.utils.utils_wikisql import *
 from sqlova.model.nl2sql.wikisql_models import *
+from sqlova.model.nl2sql.wikisql_models_v2 import *
 from sqlnet.dbengine import DBEngine
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -190,6 +191,56 @@ def get_models(args, BERT_PT_PATH, trained=False, path_model_bert=None, path_mod
         model.load_state_dict(res['model'], strict=False)
 
     return model, model_bert, tokenizer, bert_config
+
+
+
+def get_models_v2(args, BERT_PT_PATH, trained=False, path_model_bert=None, path_model=None):
+    # some constants
+    agg_ops = ['', 'MAX', 'MIN', 'COUNT', 'SUM', 'AVG']
+    cond_ops = ['=', '>', '<', 'OP']  # do not know why 'OP' required. Hence,
+
+    print(f"Batch_size = {args.bS * args.accumulate_gradients}")
+    print(f"BERT parameters:")
+    print(f"learning rate: {args.lr_bert}")
+    print(f"Fine-tune BERT: {args.fine_tune}")
+
+    # Get BERT
+    model_bert, tokenizer, bert_config = get_bert(BERT_PT_PATH, args.bert_type, args.do_lower_case,
+                                                  args.no_pretraining)
+    args.iS = bert_config.hidden_size * args.num_target_layers  # Seq-to-SQL input vector dimenstion
+
+    # Get Seq-to-SQL
+
+    n_cond_ops = len(cond_ops)
+    n_agg_ops = len(agg_ops)
+    print(f"Seq-to-SQL: the number of final BERT layers to be used: {args.num_target_layers}")
+    print(f"Seq-to-SQL: the size of hidden dimension = {args.hS}")
+    print(f"Seq-to-SQL: LSTM encoding layer size = {args.lS}")
+    print(f"Seq-to-SQL: dropout rate = {args.dr}")
+    print(f"Seq-to-SQL: learning rate = {args.lr}")
+    model = Seq2SQL_v2(args.iS, args.hS, args.lS, args.dr, n_cond_ops, n_agg_ops)
+    model = model.to(device)
+
+    if trained:
+        assert path_model_bert != None
+        assert path_model != None
+
+        if torch.cuda.is_available():
+            res = torch.load(path_model_bert)
+        else:
+            res = torch.load(path_model_bert, map_location='cpu')
+        model_bert.load_state_dict(res['model_bert'])
+        model_bert.to(device)
+
+        if torch.cuda.is_available():
+            res = torch.load(path_model)
+        else:
+            res = torch.load(path_model, map_location='cpu')
+
+        model.load_state_dict(res['model'], strict=False)
+
+    return model, model_bert, tokenizer, bert_config
+
 
 def get_data(path_wikisql, args):
     train_data, train_table, dev_data, dev_table, _, _ = load_wikisql(path_wikisql, args.toy_model, args.toy_size, no_w2i=True, no_hs_tok=True)

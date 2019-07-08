@@ -697,7 +697,7 @@ def get_bert_output(model_bert, tokenizer, nlu_t, hds, max_seq_length):
     input_mask = []
 
     i_nlu = []  # index to retreive the position of contextual vector later.
-    i_hds = []  # what is this?
+    i_hds = []  #
 
     doc_tokens = []
     nlu_tt = []
@@ -1000,7 +1000,6 @@ def pred_wc(wn, s_wc):
 
 def pred_wc_api_topN(wn, s_wc, n):
     pr_wc = []
-    import pdb;pdb.set_trace()
     for b, wn1 in enumerate([n]):
         s_wc1 = s_wc[b]
         pr_wc1 = argsort(-s_wc1.data.cpu().numpy())[:wn1]
@@ -1071,7 +1070,6 @@ def pred_wvi_se_beam(max_wn, s_wv, beam_size):
     s_wv: [B, 4, mL, 2]
     - predict best st-idx & ed-idx
 
-
     output:
     pr_wvi_beam = [B, max_wn, n_pairs, 2]. 2 means [st, ed].
     prob_wvi_beam = [B, max_wn, n_pairs]
@@ -1119,10 +1117,6 @@ def pred_wvi_se_beam(max_wn, s_wv, beam_size):
                     prob_wvi_beam[b, i_wn, pair_idx] = p1*p2
             pr_wvi_beam1.append(pr_wvi_beam11)
         pr_wvi_beam.append(pr_wvi_beam1)
-
-
-    # prob
-
     return pr_wvi_beam, prob_wvi_beam
 
 def is_whitespace_g_wvi(c):

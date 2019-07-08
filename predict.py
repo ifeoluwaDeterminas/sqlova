@@ -88,17 +88,16 @@ def predict(data_loader, data_table, model, model_bert, bert_config, tokenizer,
             pr_sql_i = generate_sql_i(pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wv_str, nlu)
         else:
             # Execution guided decoding
-            prob_sca, prob_w, prob_wn_w, pr_sc, pr_sa, pr_wn, pr_sql_i = model.beam_forward_sqlmax(wemb_n, l_n, wemb_h, l_hpu,
-                                                                                            l_hs, engine, tb,
-                                                                                            nlu_t, nlu_tt,
-                                                                                            tt_to_t_idx, nlu,
-                                                                                            beam_size=beam_size)
+            #prob_sca, prob_w, prob_wn_w, pr_sc, pr_sa, pr_wn, pr_sql_i = model.beam_forward_sqlmax(wemb_n, l_n, wemb_h, l_hpu, l_hs, engine, tb, nlu_t, nlu_tt, tt_to_t_idx, nlu, beam_size=beam_size)
+            select, wcn, decoded_where = model.beam_forward_sqlmax(wemb_n, l_n, wemb_h, l_hpu, l_hs, engine, tb, nlu_t, nlu_tt, tt_to_t_idx, nlu, beam_size=beam_size)
             # sort and generate
-            pr_wc, pr_wo, pr_wv, pr_sql_i = sort_and_generate_pr_w(pr_sql_i)
-            # Following variables are just for consistency with no-EG case.
-            pr_wvi = None # not used
-            pr_wv_str=None
-            pr_wv_str_wp=None
+            #pr_wc, pr_wo, pr_wv, pr_sql_i = sort_and_generate_pr_w(pr_sql_i)
+            print ("select:", select[0])
+            print ("\n")
+            print ("wcn:", wcn[0])
+            print ("\n")
+            print ("decoded_where:", decoded_where) 
+            return select[0], wcn[0], decoded_where
 
         pr_sql_q = generate_sql_q(pr_sql_i, tb)
 
@@ -111,6 +110,53 @@ def predict(data_loader, data_table, model, model_bert, bert_config, tokenizer,
             results.append(results1)
         #import pdb;pdb.set_trace()
     return results
+
+
+
+# Use for later. 
+def decode(tokenizer, token, after, where, beam_decode=False):
+    """ decode actual values in condition logits """
+    gloss = token
+    decoder = gloss_decoder(tokenizer, gloss, after)
+    query_conds = where
+    decoded_conds = []
+    if beam_decode:
+        decoded_conds = copy.copy(query_conds)
+        for i, cols in enumerate(query_conds):
+            for j, ops in enumerate(cols):
+                for k, values in enumerate(ops):
+                    decoded_conds[i][j][k] = values[:-2] + [decoder.decode_span(values[-2:])]
+    else:
+        for col,op,sub_span in query_conds:
+            decoded_conds.append([col, op, decoder.decode_span(sub_span)])
+    return decoded_conds
+
+class gloss_decoder:
+    def __init__(self, tokenizer, gloss, after):
+        self.tokenizer = tokenizer
+        self.gloss = gloss
+        self.after = after
+        pos_map={}
+        start_index=1
+        sub_tokens = []
+        for j,t in enumerate(gloss):
+            tok = tokenizer.tokenize(t)
+            sub_tokens.extend(tok)
+            l = len(tok)
+            for k in range(start_index, start_index + l):
+                pos_map[k]=j
+            start_index += l
+        self.pos_map = pos_map
+
+    def decode_span(self, sub_span):
+        if any(s < 0 for s in sub_span) or any (s > len(self.pos_map) for s in sub_span):
+            return None
+        span = [self.pos_map[int(s)] for s in sub_span]
+        value = self.gloss[span[0]]
+        for i in range(span[0]+1, span[1]+1):
+            value += self.after[i-1] + self.gloss[i]
+        return value
+
 
 ## Set up hyper parameters and paths
 parser = argparse.ArgumentParser()
@@ -157,4 +203,6 @@ with torch.no_grad():
                       dset_name=args.split, EG=args.EG)
 
 # Save results
-save_for_evaluation(path_save_for_evaluation, results, args.split)
+#save_for_evaluation(path_save_for_evaluation, results, args.split)
+
+

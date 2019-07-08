@@ -176,6 +176,7 @@ class Seq2SQL_v1(nn.Module):
 
         ################################
         # Now, Where-clause beam search.
+        
         s_wn = self.wnp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, show_p_wn=show_p_wn)
         prob_wn = F.softmax(s_wn, dim=-1).detach().to('cpu').numpy()
 
@@ -184,7 +185,7 @@ class Seq2SQL_v1(nn.Module):
         s_wc = self.wcp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, show_p_wc=show_p_wc, penalty=True)
         prob_wc = F.sigmoid(s_wc).detach().to('cpu').numpy()
         # pr_wc_sorted_by_prob = pred_wc_sorted_by_prob(s_wc)
-
+        
         # get max_wn # of most probable columns & their prob.
         pr_wn_max = [self.max_wn]*bS
         pr_wc_max = pred_wc(pr_wn_max, s_wc) # if some column do not have executable where-claouse, omit that column
@@ -197,7 +198,7 @@ class Seq2SQL_v1(nn.Module):
         s_wo_max = self.wop(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn_max, wc=pr_wc_max, show_p_wo=show_p_wo)
         prob_wo_max = F.softmax(s_wo_max, dim=-1).detach().to('cpu').numpy()
         # [B, max_wn, n_cond_op]
-
+        
         pr_wvi_beam_op_list = []
         prob_wvi_beam_op_list = []
         for i_op  in range(self.n_cond_ops-1):
@@ -206,13 +207,13 @@ class Seq2SQL_v1(nn.Module):
             s_wv = self.wvp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn_max, wc=pr_wc_max, wo=pr_wo_temp, show_p_wv=show_p_wv)
             prob_wv = F.softmax(s_wv, dim=-2).detach().to('cpu').numpy()
 
-            # prob_wv
+            # pr_wv
             pr_wvi_beam, prob_wvi_beam = pred_wvi_se_beam(self.max_wn, s_wv, beam_size)
             pr_wvi_beam_op_list.append(pr_wvi_beam)
             prob_wvi_beam_op_list.append(prob_wvi_beam)
             # pr_wvi_beam = [B, max_wn, k_logit**2 [st, ed] paris]
-
             # pred_wv_beam
+        #import pdb;pdb.set_trace()
 
         # Calculate joint probability of where-clause
         # prob_w = [batch, wc, wo, wv] = [B, max_wn, n_cond_op, n_pairs]
@@ -235,7 +236,7 @@ class Seq2SQL_v1(nn.Module):
         # while len(conds_max) < self.max_wn:
         idxs = topk_multi_dim(torch.tensor(prob_w), n_topk=beam_size, batch_exist=True)
         # idxs = [B, i_wc_beam, i_op, i_wv_pairs]
-
+        
         # Construct conds1
         for b, idxs1 in enumerate(idxs):
             conds_max1 = []
@@ -284,8 +285,9 @@ class Seq2SQL_v1(nn.Module):
             pr_sql_i1 = {'agg': pr_sa_best[b], 'sel': pr_sc_best[b], 'conds': conds_max[b][:pr_wn_based_on_prob[b]]}
             pr_sql_i.append(pr_sql_i1)
         # s_wv = [B, max_wn, max_nlu_tokens, 2]
-        #import pdb; pdb.set_trace()
+
         return prob_sca, prob_w, prob_wn_w, pr_sc_best, pr_sa_best, pr_wn_based_on_prob, pr_sql_i
+
 
     def beam_forward_sqlmax(self, wemb_n, l_n, wemb_hpu, l_hpu, l_hs, engine, tb,
                      nlu_t, nlu_wp_t, wp_to_wh_index, nlu,
@@ -293,15 +295,18 @@ class Seq2SQL_v1(nn.Module):
                      show_p_sc=False, show_p_sa=False,
                      show_p_wn=False, show_p_wc=False, show_p_wo=False, show_p_wv=False):
         """
-        Execution-guided beam decoding.
+        Returns the output tensor the same format for X-SQL C# interface
+
+        # select format : [4,4,4] = [# of select beam, # of agg beam, 4 items (col_prob, col_ix, agg_prob, agg_ix)] 
+        # [[[pc,ix,sa,ix],[pc,ix,sa,ix],[pc,ix,sa,ix],[pc,ix,sa,ix]], 
+        #  [[ ... ]],
+        #  [[ ... ]],
+        #  [[ ... ]]]
         """
         # sc
         s_sc = self.scp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, show_p_sc=show_p_sc)
         prob_sc = F.softmax(s_sc, dim=-1)
         bS, mcL = s_sc.shape
-
-        # minimum_hs_length = min(l_hs)
-        # beam_size = minimum_hs_length if beam_size > minimum_hs_length else beam_size
 
         # sa
         # Construct all possible sc_sa_score
@@ -325,7 +330,7 @@ class Seq2SQL_v1(nn.Module):
 
         # Calculate the dimension of tensor
         # tot_dim = len(prob_sca.shape)
-
+        
         # First flatten to 1-d
         idxs = topk_multi_dim(torch.tensor(prob_sca), n_topk=beam_size, batch_exist=True)
         # Now as sc_idx is already sorted, re-map them properly.
@@ -336,11 +341,6 @@ class Seq2SQL_v1(nn.Module):
         # idxs[b][0] gives first probable [sc_idx, sa_idx] pairs.
         # idxs[b][1] gives of second.
 
-        ######################################################################
-        # SQLMAX : Will return not only the best index but also the runnerups!
-        ######################################################################
-        
-        #import pdb;pdb.set_trace()
         # Initialize the score array.
         pr_sc = idxs_arr[:,:,:1] #[bs, 4(beam_size), 1] # first item in -1 dim
         pr_sa = idxs_arr[:,:,1:] #[bs, 4(beam_size), 1] # 2nd item in -1 dim 
@@ -348,9 +348,11 @@ class Seq2SQL_v1(nn.Module):
         pr_sa_flatten = list(pr_sa.flatten())
 
         check = check_sc_sa_pairs_sqlmax(tb, pr_sc, pr_sa)
-
+        
+        ###########################
         # [EG] Removing wrong pairs.
         # TODO: Later when there is batch size is not 1.
+        ###########################
         ix = 0
         for true_false in check:        
             if true_false:
@@ -366,15 +368,37 @@ class Seq2SQL_v1(nn.Module):
 
         #TODO: SCORE AS WELL.
 
+        #import pdb; pdb.set_trace()
+        ####################
+        # 1. Select formatting as xsql
+        #################### 
+        # beam_size = 4
+        softmax = torch.nn.Softmax(-1)
+        c_probs = prob_sc
+        c_probs, slots = torch.topk(c_probs, beam_size)
+        select_query = [None]*beam_size
+        for i in range(beam_size):
+            col_prob = c_probs[:,i]
+            slot = slots[:,i]
+            agg_probs = prob_sa
+            a_probs, agg = torch.topk(agg_probs, beam_size)
+            select_query[i] = dict(agg=agg, agg_prob=a_probs)
+
+        decoded=[None]
+        for sample_id, (sel_prob, sel) in enumerate(zip(c_probs, slots)):
+            decoded[sample_id]=[None]*beam_size
+            for sel_beam, (sp, sc) in enumerate(zip(sel_prob, sel)):
+                decoded[sample_id][sel_beam] = [[sp.item(),sc.item(),0,0] for _ in range(beam_size)]
+                for agg_beam, (ap, sa) in enumerate(zip(select_query[sel_beam]['agg_prob'][sample_id,:], select_query[sel_beam]['agg'][sample_id, :])):
+                    decoded[sample_id][sel_beam][agg_beam]=[sp.item(), sc.item(), ap.item(), sa.item()]
         
+        select_csharp = torch.tensor(decoded).detach().to('cpu')
+        #print(select_csharp_format)
 
+        #################################
+        # 2. wn / cond formatting as xsql
+        #################################
 
-
-        import pdb; pdb.set_trace()
-
-        ###########################
-        # Where-clause beam search.
-        ###########################
         s_wn = self.wnp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, show_p_wn=show_p_wn)
         prob_wn = F.softmax(s_wn, dim=-1).detach().to('cpu').numpy()
 
@@ -382,27 +406,36 @@ class Seq2SQL_v1(nn.Module):
         # wc
         s_wc = self.wcp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, show_p_wc=show_p_wc, penalty=True)
         prob_wc = F.sigmoid(s_wc).detach().to('cpu').numpy()
+        
         # pr_wc_sorted_by_prob = pred_wc_sorted_by_prob(s_wc)
+        
+        # xsql hyper param
+        self.max_wn +=2
 
         # get max_wn # of most probable columns & their prob.
-        pr_wn_max = [self.max_wn]*bS
-        pr_wc_max = pred_wc(pr_wn_max, s_wc) # if some column do not have executable where-claouse, omit that column
-        prob_wc_max = zeros([bS, self.max_wn])
+        pr_wn_max = [self.max_wn] * bS  # penhe max_wn + 2
+        pr_wc_max = pred_wc_sorted_by_prob(s_wc) # if some column do not have executable where-claouse, omit that column
+        prob_wc_max = zeros([bS, self.max_wn]) # penhe max_wn + 2
         for b, pr_wc_max1 in enumerate(pr_wc_max):
             prob_wc_max[b,:] = prob_wc[b,pr_wc_max1]
 
         # get most probable max_wn where-clouses
         # wo
-        s_wo_max = self.wop(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn_max, wc=pr_wc_max, show_p_wo=show_p_wo)
+        s_wo_max = self.wop(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn_max, wc=pr_wc_max, show_p_wo=show_p_wo) # wc used to be pr_wc_max but to make it full columns, changed it to pr_wc
         prob_wo_max = F.softmax(s_wo_max, dim=-1).detach().to('cpu').numpy()
         # [B, max_wn, n_cond_op]
 
-        pr_wvi_beam_op_list = []
+
+        #import pdb;pdb.set_trace()
+        # Now params have to be changed because wc is no longer 4 items.
+
+        pr_wvi_beam_op_list = [] # inserted directly to the output.
         prob_wvi_beam_op_list = []
+        prob_wv_list = []
         for i_op  in range(self.n_cond_ops-1):
             pr_wo_temp = [ [i_op]*self.max_wn ]*bS
             # wv
-            s_wv = self.wvp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn_max, wc=pr_wc_max, wo=pr_wo_temp, show_p_wv=show_p_wv)
+            s_wv = self.wvp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn_max, wc=pr_wc_max, wo=pr_wo_temp, show_p_wv=show_p_wv) # [1,6,15,2]
             prob_wv = F.softmax(s_wv, dim=-2).detach().to('cpu').numpy()
 
             # prob_wv
@@ -410,8 +443,8 @@ class Seq2SQL_v1(nn.Module):
             pr_wvi_beam_op_list.append(pr_wvi_beam)
             prob_wvi_beam_op_list.append(prob_wvi_beam)
             # pr_wvi_beam = [B, max_wn, k_logit**2 [st, ed] paris]
-
             # pred_wv_beam
+            prob_wv_list.append(prob_wv)
 
         # Calculate joint probability of where-clause
         # prob_w = [batch, wc, wo, wv] = [B, max_wn, n_cond_op, n_pairs]
@@ -434,7 +467,7 @@ class Seq2SQL_v1(nn.Module):
         # while len(conds_max) < self.max_wn:
         idxs = topk_multi_dim(torch.tensor(prob_w), n_topk=beam_size, batch_exist=True)
         # idxs = [B, i_wc_beam, i_op, i_wv_pairs]
-
+        
         # Construct conds1
         for b, idxs1 in enumerate(idxs):
             conds_max1 = []
@@ -454,17 +487,18 @@ class Seq2SQL_v1(nn.Module):
                 # test execution
                 # print(nlu[b])
                 # print(tb[b]['id'], tb[b]['types'], pr_sc[b], pr_sa[b], [conds11])
-                pr_ans = engine.execute(tb[b]['id'], pr_sc[b], pr_sa[b], [conds11])
-                if bool(pr_ans):
-                    # pr_ans is not empty!
-                    conds_max1.append(conds11)
-                    prob_conds_max1.append(prob_conds11)
-            conds_max.append(conds_max1)
-            prob_conds_max.append(prob_conds_max1)
+                #pr_ans = engine.execute(tb[b]['id'], pr_sc[b], pr_sa[b], [conds11])
+                #if bool(pr_ans):
+                #    # pr_ans is not empty!
+                #    conds_max1.append(conds11)
+                #    prob_conds_max1.append(prob_conds11)
+            #conds_max.append(conds_max1)
+            #prob_conds_max.append(prob_conds_max1)
 
             # May need to do more exhuastive search?
             # i.e. up to.. getting all executable cases.
 
+        """
         # Calculate total probability to decide the number of where-clauses
         pr_sql_i = []
         prob_wn_w = []
@@ -483,7 +517,102 @@ class Seq2SQL_v1(nn.Module):
             pr_sql_i1 = {'agg': pr_sa_best[b], 'sel': pr_sc_best[b], 'conds': conds_max[b][:pr_wn_based_on_prob[b]]}
             pr_sql_i.append(pr_sql_i1)
         # s_wv = [B, max_wn, max_nlu_tokens, 2]
-        return prob_sca, prob_w, prob_wn_w, pr_sc_best, pr_sa_best, pr_wn_based_on_prob, pr_sql_i
+        """
+
+        ##################################
+        # prepare variables for C# format.
+        ##################################
+        wcn_logits = s_wn # [1,4]   
+        wc_logits = s_wc
+
+        softmax = torch.nn.Softmax(-1)
+        max_wn = pr_wn_max # penhe + 2?
+        #beam_size = min(max_wn, beam_size)
+        
+        
+        wcn_probs, wcns = torch.topk(softmax(wcn_logits), beam_size)      # [1,4]
+        wc_probs, wc_labels = torch.topk(softmax(wc_logits), self.max_wn) # [1,6]
+        
+        col_num = torch.tensor([l_hs[0] + 1]).to(device) # double check  +1
+        slot_labels = torch.where(wc_labels<col_num.unsqueeze(1), wc_labels, torch.zeros_like(wc_labels).fill_(-1000)) # tensor([[5, 4, 1, 0, 6, 3]]) #[1,6]
+
+
+        op_logits = s_wo_max[:,:,:3] # hard chop off to remove dummy "OP" value. [1,50,3]
+        op_logits = torch.gather(op_logits, 1, wc_labels.unsqueeze(2).expand(*wc_labels.size(), op_logits.size(-1))).contiguous() # [1,6,3]
+        
+        self.wo_num = op_logits.size(-1)
+
+        wv_logits = torch.tensor(prob_wv_list[0]) # [1,256,6,2] # TODO: Later train it with all three ops.
+
+        start_logits, end_logits = wv_logits.contiguous().split(1,-1) # [1,6,256,2]
+        start_logits = start_logits.squeeze(-1) # [1, 6, 256]
+        end_logits = end_logits.squeeze(-1)
+
+        decoded_conds=[None] * wcn_probs.size(0)  
+
+        """
+        # BEAM search starts
+        """        
+        for sample_id,(cn, pwc_k, wc_k, l_op, ls_wv, le_wv) in enumerate(zip(col_num, wc_probs, slot_labels, op_logits, start_logits, end_logits)):
+            decoded_conds[sample_id] = [None] * self.max_wn
+            for wc_id,(pwc, wc, o, s, e) in enumerate(zip(pwc_k, wc_k, l_op, ls_wv, le_wv)):
+                wc = wc.item()
+                if wc>=cn-1:
+                    wc = -1
+                pwc = pwc.item() # prob. of wc. [1,6]
+
+                decoded_conds[sample_id][wc_id] = [None]*self.wo_num
+                op_prop, op = softmax(o).topk(self.wo_num)
+                vs_prop, vs = softmax(s).topk(beam_size)
+                ve_prop, ve = softmax(e).topk(beam_size)
+                values = []
+                for k, (sp,s) in enumerate(zip(vs_prop, vs)):
+                    for j, (ep, e) in enumerate(zip(ve_prop, ve)):
+                        if s<=e:
+                            values.append([sp*ep, [s,e]])
+                values = sorted(values, key=lambda v:-v[0])[:beam_size]
+                for o_id, (pop, opi) in enumerate(zip(op_prop, op)):
+                    decoded_conds[sample_id][wc_id][o_id] = [[pwc, wc, pop.item(), opi.item(), 0, -1000, -1000] for _ in range(beam_size)]
+                    for v_id, (pv, v) in enumerate(values):
+                        decoded_conds[sample_id][wc_id][o_id][v_id] = [pwc, wc, pop.item(), opi.item(), pv.item(), v[0].item(), v[1].item()]
+
+        decoded_wn = torch.stack((wcn_probs.to(torch.float32), (wcns).to(torch.float32)), dim=-1) # [1, 4, 2]
+        #print (decoded_wn, torch.tensor(decoded_conds).to(torch.float32)) 
+
+        #import pdb;pdb.set_trace()
+
+        # xsql-style decoding 
+        str_idx = pr_wvi_beam_op_list
+        str_idx = torch.tensor(str_idx).clone().detach().permute(1,2,0,3,4)
+        """
+        decoded_conds_ = np.array(decoded_conds)[:,:,:,:,:6] # [1, 6, 3, 4, 6]
+        decoded_conds_list = decoded_conds_.tolist()
+        for b, idxs1 in enumerate(idxs):
+            conds_max1 = []
+            prob_conds_max1 = []
+            for i_wn, idxs11 in enumerate(idxs1):
+                wvi = str_idx[b][idxs11[0]][i_op][idxs11[2]]
+                # get wv_str
+                temp_pr_wv_str, _ = convert_pr_wvi_to_string([[wvi]], [nlu_t[b]], [nlu_wp_t[b]], [wp_to_wh_index[b]], [nlu[b]])
+                merged_wv11 = merge_wv_t1_eng(temp_pr_wv_str[0][0], nlu[b])
+                print(merged_wv11)
+                #import pdb;pdb.set_trace()
+                decoded_conds_list[b][idxs11[0]][i_op][idxs11[2]][-1] = merged_wv11
+        """
+        #import pdb; pdb.set_trace()
+        decoded_conds_final = decoded_conds[b].copy() # list
+        for i, cols in enumerate(decoded_conds[b]):
+            for j, ops in enumerate(cols):
+                #wvi = str_idx[i][j][2]
+                for k, values in enumerate(ops):
+                    wvi = values[-2:]
+                    # get wv_str
+                    temp_pr_wv_str, _ = convert_pr_wvi_to_string([[wvi]], [nlu_t[b]], [nlu_wp_t[b]], [wp_to_wh_index[b]], [nlu[b]])
+                    merged_wv11 = merge_wv_t1_eng(temp_pr_wv_str[0][0], nlu[b])
+                    #print(merged_wv11)
+                    decoded_conds_final[i][j][k] = values[:-2] + [merged_wv11]
+        return select_csharp, decoded_wn, decoded_conds_final # (6, 3, 4, 6)
+
 
 
 
@@ -849,7 +978,7 @@ class WOP(nn.Module):
         self.lS = lS
         self.dr = dr
 
-        self.mL_w = 4 # max where condition number
+        self.mL_w = 4 + 2# max where condition number
 
         self.enc_h = nn.LSTM(input_size=iS, hidden_size=int(hS / 2),
                              num_layers=lS, batch_first=True,
@@ -881,10 +1010,10 @@ class WOP(nn.Module):
 
         wenc_hs = encode_hpu(self.enc_h, wemb_hpu, l_hpu, l_hs)  # [b, hs, dim]
 
-        bS = len(l_hs)
-        # wn
-
-
+        bS = len(l_hs) # batch size
+        
+        #import pdb;pdb.set_trace()
+        
         wenc_hs_ob = [] # observed hs
         for b in range(bS):
             # [[...], [...]]
@@ -911,7 +1040,7 @@ class WOP(nn.Module):
             if l_n1 < mL_n:
                 att[b, :, l_n1:] = -10000000000
 
-        p = self.softmax_dim2(att)  # p( n| selected_col )
+        p = self.softmax_dim2(att)  # p( n| selected_col ) # p = [1,4, 15] = [B, wn, mL_n]
         if show_p_wo:
             # p = [b, hs, n]
             if p.shape[0] != 1:
@@ -932,16 +1061,12 @@ class WOP(nn.Module):
             fig.canvas.draw()
             show()
 
-        # [B, 1, mL_n, dim] * [B, 4, mL_n, 1]
-        #  --> [B, 4, mL_n, dim]
-        #  --> [B, 4, dim]
+        # [B, 1, mL_n, dim] * [B, 4, mL_n, 1]-> [B, 4, mL_n, dim] -> [B, 4, dim]
         c_n = torch.mul(wenc_n.unsqueeze(1), p.unsqueeze(3)).sum(dim=2)
-
         # [bS, 5-1, dim] -> [bS, 5-1, 3]
 
-        vec = torch.cat([self.W_c(c_n), self.W_hs(wenc_hs_ob)], dim=2)
+        vec = torch.cat([self.W_c(c_n), self.W_hs(wenc_hs_ob)], dim=2) # cat [1,4,100]&[1,4,100]
         s_wo = self.wo_out(vec)
-
         return s_wo
 
 class WVP_se(nn.Module):
@@ -960,7 +1085,7 @@ class WVP_se(nn.Module):
         self.dr = dr
         self.n_cond_ops = n_cond_ops
 
-        self.mL_w = 4  # max where condition number
+        self.mL_w = 4 + 2  # max where condition number
 
         self.enc_h = nn.LSTM(input_size=iS, hidden_size=int(hS / 2),
                              num_layers=lS, batch_first=True,
@@ -1001,6 +1126,7 @@ class WVP_se(nn.Module):
         g_wvi is the NLU label that we are going to pass from the NLU API.  Format: [[[7, 7], [13, 14]]]
                 s_wv = self.wvp(wemb_n, l_n, wemb_hpu, l_hpu, l_hs, wn=pr_wn, wc=pr_wc, wo=pr_wo, show_p_wv=show_p_wv, g_wvi= g_wvi)
         """
+        
         # Encode
         if not wenc_n:
             wenc_n, hout, cout = encode(self.enc_n, wemb_n, l_n,
@@ -1041,7 +1167,7 @@ class WVP_se(nn.Module):
             if l_n1 < mL_n:
                 att[b, :, l_n1:] = -10000000000
 
-        p = self.softmax_dim2(att)  # p( n | selected_col ) [B, 4 , l_n=16]
+        p = self.softmax_dim2(att)  # p( n | selected_col ) #[B, 4 , l_n=16] # now 6 instead of 4.
 
         if show_p_wv:
             # p = [b, hs, n]
@@ -1063,11 +1189,10 @@ class WVP_se(nn.Module):
             fig.canvas.draw()
             show()
 
-
         # [B, 1, mL_n, dim] * [B, 4, mL_n, 1]
         #  --> [B, 4, mL_n, dim]
         #  --> [B, 4, dim= 100] 
-        c_n = torch.mul(wenc_n.unsqueeze(1), p.unsqueeze(3)).sum(dim=2)
+        c_n = torch.mul(wenc_n.unsqueeze(1), p.unsqueeze(3)).sum(dim=2) # [1, 6, 100]
 
         # Select observed headers only.
         # Also generate one_hot vector encoding info of the operator
@@ -1091,7 +1216,7 @@ class WVP_se(nn.Module):
 
             wenc_op.append(wenc_op1)
 
-        # list to [B, 4, dim] tensor.
+        # list to [B, 4, dim] tensor. # [1,6,4]
         wenc_op = torch.stack(wenc_op)  # list to tensor.
         wenc_op = wenc_op.to(device)
 
@@ -1126,6 +1251,8 @@ class WVP_se(nn.Module):
 
         indices = indices.view(bS, self.mL_w, mL_n * 2)        
 
+        #import pdb;pdb.set_trace()
+
         # Now after concat, calculate logits for each token
         # [bS, 5-1, 3*hS] = [bS, 4, 300] ==> [bS, 4, 400]
         #vec = torch.cat([self.W_c(c_n), self.W_hs(wenc_hs_ob), self.W_op(wenc_op)], dim=2) #  [bS, 4, 300] 
@@ -1135,7 +1262,7 @@ class WVP_se(nn.Module):
         # wenc_n = [bS, mL, 100]
         # vec2 = [bS, 4, mL, 400]
         vec1e = vec.unsqueeze(2).expand(-1,-1, mL_n, -1) # [bS, 4, 1, 300]  -> [bS, 4, mL, 300]
-        wenc_ne = wenc_n.unsqueeze(1).expand(-1, 4, -1, -1) # [bS, 1, mL, 100] -> [bS, 4, mL, 100]
+        wenc_ne = wenc_n.unsqueeze(1).expand(-1, self.mL_w, -1, -1) # [bS, 1, mL, 100] -> [bS, 4, mL, 100]
         vec2 = torch.cat( [vec1e, wenc_ne], dim=3)
 
         # now make logits
@@ -1849,7 +1976,7 @@ class FT_Scalar_1(nn.Module):
                 break
             else:
                 for b, check1 in enumerate(check):
-                    if not check1:  # wrong pair
+                    if not check1:  # wrong paird
                         beam_idx_sca[b] += 1
                         if beam_idx_sca[b] >= beam_size:
                             beam_meet_the_final[b] = True

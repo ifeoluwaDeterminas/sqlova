@@ -4,8 +4,6 @@ from collections import namedtuple
 from inference_api_tensor_out import predict_wrapper
 import json
 import os
-import numpy as np
-import array
 # from logger_util import *
 
 curDir = os.path.dirname(os.path.realpath(__file__))
@@ -30,7 +28,7 @@ def jsonToObj(jsonObj):
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
-        self.write("SQL Max 6/21/2019")
+        self.write("SQL Max 7/8/2019")
 
 
 # http://localhost:8888/query?question=What position does the player who played for butler cc (ks) play&header=["Player", "No.", "Nationality", "Position", "Years in Toronto", "School/Club Team"]&types=["text", "text", "text", "text", "text", "text"]
@@ -44,7 +42,7 @@ class QueryHandler(tornado.web.RequestHandler):
         self.set_header("Access-Control-Allow-Headers", "x-requested-with")
         self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
 
-    def get(self):
+    def predictInternal(self):
         inputQuery = {
             'question': self.get_argument("question"),
             'header': json.loads(self.get_argument("header", default="[]")),
@@ -59,6 +57,12 @@ class QueryHandler(tornado.web.RequestHandler):
             "wcn": wcn,
             "where": wcond
         })
+
+    def get(self):
+        self.predictInternal()
+
+    def post(self):
+        self.predictInternal()
 
 def make_app():
     return tornado.web.Application([

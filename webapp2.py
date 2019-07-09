@@ -4,6 +4,8 @@ from collections import namedtuple
 from inference_api_tensor_out import predict_wrapper
 import json
 import os
+import numpy as np
+import array
 # from logger_util import *
 
 curDir = os.path.dirname(os.path.realpath(__file__))
@@ -51,6 +53,12 @@ class QueryHandler(tornado.web.RequestHandler):
         }
 
         select, wcn, wcond = predict_wrapper(inputQuery)
+
+        self.write({
+            "select": select,
+            "wcn": wcn,
+            "where": wcond
+        })
 
 def make_app():
     return tornado.web.Application([

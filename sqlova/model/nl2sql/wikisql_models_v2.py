@@ -392,8 +392,8 @@ class Seq2SQL_v2(nn.Module):
                 for agg_beam, (ap, sa) in enumerate(zip(select_query[sel_beam]['agg_prob'][sample_id,:], select_query[sel_beam]['agg'][sample_id, :])):
                     decoded[sample_id][sel_beam][agg_beam]=[sp.item(), sc.item(), ap.item(), sa.item()]
         
-        select_csharp = torch.tensor(decoded).detach().to('cpu')
-        #print(select_csharp_format)
+        #select_csharp = torch.tensor(decoded).detach().to('cpu')
+        select_csharp = decoded # output as list, not tensor. 
 
         #################################
         # 2. wn / cond formatting as xsql
@@ -578,6 +578,7 @@ class Seq2SQL_v2(nn.Module):
                         decoded_conds[sample_id][wc_id][o_id][v_id] = [pwc, wc, pop.item(), opi.item(), pv.item(), v[0].item(), v[1].item()]
 
         decoded_wn = torch.stack((wcn_probs.to(torch.float32), (wcns).to(torch.float32)), dim=-1) # [1, 4, 2]
+        decoded_wn = decoded_wn.tolist()
         #print (decoded_wn, torch.tensor(decoded_conds).to(torch.float32)) 
 
         #import pdb;pdb.set_trace()

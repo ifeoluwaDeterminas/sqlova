@@ -11,12 +11,19 @@ import argparse, os
 from sqlova.utils.utils_wikisql import *
 from train import construct_hyper_param, get_models_v2
 
+from wikisql_data_annotate import *
+import random
+from tqdm import tqdm, trange
+import numpy as np
+import torch
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
+
+
 def is_empty(any_structure):
     if any_structure:
         return False
     else:
         return True
-
 
 def predict_wrapper(data):
     ## Set up hyper parameters and paths
@@ -63,7 +70,10 @@ def predict(data, model, model_bert, bert_config, tokenizer, max_seq_length, num
     hds = [data['header']]
     types = [data['types']]
     nlu = [data['question']]
-    nlu_t = [nlu[0].rstrip().replace('?', '').split(' ')] 
+
+    _, gloss, after = annotate_str(nlu)
+    nlu_t = [gloss] # tokenization using Stanford Core NLP
+
     tb = None
     engine = None
     beam_size = 4
@@ -72,12 +82,41 @@ def predict(data, model, model_bert, bert_config, tokenizer, max_seq_length, num
 
     select, wcn, decoded_where = model.beam_forward_sqlmax(wemb_n, l_n, wemb_h, l_hpu, l_hs, nlu_t, nlu_tt, tt_to_t_idx, nlu, beam_size=beam_size)
 
+	#debugging purpose.
     print ("select:", select[0])
     print ("\n")
     print ("wcn:", wcn[0])
     print ("\n")
     print ("decoded_where:", decoded_where) 
     return select[0], wcn[0], decoded_where
+
+
+class gloss_decoder:
+    def __init__(self, tokenizer, gloss, after):
+        self.tokenizer = tokenizer
+        self.gloss = gloss
+        self.after = after
+        pos_map={}
+        start_index=1
+        sub_tokens = []
+        for j,t in enumerate(gloss):
+            tok = tokenizer.tokenize(t)
+            sub_tokens.extend(tok)
+            l = len(tok)
+            for k in range(start_index, start_index + l):
+                pos_map[k]=j
+            start_index += l
+        self.pos_map = pos_map
+
+    def decode_span(self, sub_span):
+        if any(s < 0 for s in sub_span) or any (s > len(self.pos_map) for s in sub_span):
+            return None
+        span = [self.pos_map[int(s)] for s in sub_span]
+        value = self.gloss[span[0]]
+        for i in range(span[0]+1, span[1]+1):
+            value += self.after[i-1] + self.gloss[i]
+        return value
+
 
 if __name__ == '__main__':
     ## Set up hyper parameters and paths
@@ -112,4 +151,3 @@ if __name__ == '__main__':
         results = predict(data, model, model_bert, bert_config, tokenizer, args.max_seq_length, args.num_target_layers) 
 
     print ('\n\n\n Question : ', data['question'], '\n Result : ', results)
-

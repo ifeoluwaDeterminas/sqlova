@@ -277,7 +277,7 @@ class Seq2SQL_v2(nn.Module):
                 i_wc = pr_wc_max[b][idxs11[0]]
                 i_op = idxs11[1]
                 wvi = pr_wvi_beam_op_list[i_op][b][idxs11[0]][idxs11[2]]
-
+                
                 # get wv_str
                 temp_pr_wv_str, _ = convert_pr_wvi_to_string([[wvi]], [nlu_t[b]], [nlu_wp_t[b]], [wp_to_wh_index[b]], [nlu[b]])
                 merged_wv11 = merge_wv_t1_eng(temp_pr_wv_str[0][0], nlu[b])
@@ -328,8 +328,8 @@ class Seq2SQL_v2(nn.Module):
 
         softmax = torch.nn.Softmax(-1)
         max_wn = pr_wn_max # penhe + 2?
-        #beam_size = min(max_wn, beam_size)
-        
+        #TODO: When the batch size is greater than 1.
+        beam_size = min(max_wn[0], beam_size, l_n[0]) # make the beam size the minimum of (max_wn, beam, query length) 
         
         wcn_probs, wcns = torch.topk(softmax(wcn_logits), beam_size)      # [1,4]
         wc_probs, wc_labels = torch.topk(softmax(wc_logits), self.max_wn) # [1,6]
@@ -343,11 +343,11 @@ class Seq2SQL_v2(nn.Module):
         
         self.wo_num = op_logits.size(-1)
 
-        wv_logits = torch.tensor(prob_wv_list[0]) # [1,256,6,2] # TODO: Later train it with all three ops.
+        wv_logits = torch.tensor(prob_wv_list[0]) # [1,6,query_len,2] # TODO: Later train it with all three ops.
 
-        start_logits, end_logits = wv_logits.contiguous().split(1,-1) # [1,6,256,2]
-        start_logits = start_logits.squeeze(-1) # [1, 6, 256]
-        end_logits = end_logits.squeeze(-1)
+        start_logits, end_logits = wv_logits.contiguous().split(1,-1) # [1,6,query_len,1]
+        start_logits = start_logits.squeeze(-1) # [1, 6, query_len]
+        end_logits = end_logits.squeeze(-1) # [1, 6, query_len]
 
         decoded_conds=[None] * wcn_probs.size(0)  
 

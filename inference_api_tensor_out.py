@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # How to run:
-# CUDA_VISIBLE_DEVICES=2  python inference_api_tensor_out.py  --bert_type_abb uS   --model_file /home/aerin/Desktop/sqlova/model_best.pt   --bert_model_file  /home/aerin/Desktop/sqlova/model_bert_best.pt  --bert_path /home/aerin/Desktop/sqlova/data/wikisql_tok2/
+# CUDA_VISIBLE_DEVICES=2  python inference_api_tensor_out.py  --bert_type_abb uS   --model_file  data/model/model_best.pt   --bert_model_file  data/model/model_bert_best.pt  --bert_path  data/wikisql_tok2/
 
 # BERT Files you need:
 #    - bert_config_uncased_*.json
@@ -36,9 +36,9 @@ def predict_wrapper(data):
 		parser.add_argument("--data_ix", required=True, help='data index')
 	args = construct_hyper_param(parser)
 
-	args.model_file = '/home/aerin/Desktop/sqlova/model_best.pt'
-	args.bert_model_file = '/home/aerin/Desktop/sqlova/model_bert_best.pt'
-	args.bert_path = '/home/aerin/Desktop/sqlova/data/wikisql_tok2/'
+	args.model_file = 'data/model/model_best.pt'
+	args.bert_model_file = 'data/model/model_bert_best.pt'
+	args.bert_path = 'data/wikisql_tok2/'
 	args.max_seq_length = 512
 
 	# Load pre-trained models
@@ -152,10 +152,10 @@ if __name__ == '__main__':
 	"""
 
 	data = {   
-		"question": "address of 3D printers opportunity for Microsoft",
-		"header": ["account name, account", "created on", "account id", "activate state", "revenue", "country/region", "state/povince", "city", "phone, telephone", "email address", "secondary email address", "industry", "number of employees", "description/detail", "web site, url", "contact name", "owner, owning user, account manager"],
+		"question": "accounts in Tokyo",
+		"header": ["account name","industry","created, add","category","revenue","number of employees, count of employees","open deals, open opportunities","open revenue","city","state, province","country","status","phone number, contact","email","primary contact, name","owner name"],
 		"types": ["text", "text", "text", "text", "text", "text"],
-		"data_ix":[[11,11,'3D printers'],[39,9,'Microsoft']]}
+		"data_ix":[["12","5","Tokyo"]]}
 
 	# Prediction
 	with torch.no_grad():

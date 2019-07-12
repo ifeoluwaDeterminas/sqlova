@@ -2565,6 +2565,8 @@ def str_ix_to_tok_ix(wv_str_ix, nlu, nlu_t, after):
 	
 	for val in str_ix :
 		start, length, _ = val
+		start = int(start)
+		length = int(length)
 		value1 = nlu[start:start+length] # BEWARE: This can be consist of more than 1 token!
 		# case1: when the value is just 1 token
 		if value1 in nlu_t: # check if true/false

@@ -1192,8 +1192,8 @@ def merge_wv_t1_eng(where_str_tokens, NLq):
 	Almost copied of SQLNet.
 	The main purpose is pad blank line while combining tokens.
 	"""
-	nlq = NLq.lower()
-	where_str_tokens = [tok.lower() for tok in where_str_tokens]
+	nlq = NLq
+	where_str_tokens = [tok for tok in where_str_tokens]
 	alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789$'
 	special = {'-LRB-': '(',
 			   '-RRB-': ')',
@@ -2577,7 +2577,9 @@ def str_ix_to_tok_ix(wv_str_ix, nlu, nlu_t, after):
 			nlu_t2 = nlu_t[1:]
 			nlu_t2.append("")
 			two_tok_list = [ t + _ + t2 for t, _, t2 in zip(nlu_t, after, nlu_t2)]
-			tok_temp = re.split('[^a-zA-Z0-9]', value1)
+			tok_temp = re.split('(\W)', value1)
+			tok_temp = [value for value in tok_temp if value !=" " and value !=""]
+
 			ix1 = nlu_t.index(tok_temp[0])
 			
 			if value1 in two_tok_list and nlu_t[ix1]+after[ix1]+nlu_t[ix1+1] == value1:

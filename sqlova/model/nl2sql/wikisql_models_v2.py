@@ -401,7 +401,6 @@ class Seq2SQL_v2(nn.Module):
                 #import pdb;pdb.set_trace()
                 decoded_conds_list[b][idxs11[0]][i_op][idxs11[2]][-1] = merged_wv11
         """
-        #import pdb; pdb.set_trace()
         decoded_conds_final = decoded_conds[b].copy() # list
         for i, cols in enumerate(decoded_conds[b]):
             for j, ops in enumerate(cols):
@@ -411,7 +410,6 @@ class Seq2SQL_v2(nn.Module):
                     # get wv_str
                     temp_pr_wv_str, _ = convert_pr_wvi_to_string([[wvi]], [nlu_t[b]], [nlu_wp_t[b]], [wp_to_wh_index[b]], [nlu[b]])
                     merged_wv11 = merge_wv_t1_eng(temp_pr_wv_str[0][0], nlu[b])
-                    #print(merged_wv11)
                     decoded_conds_final[i][j][k] = values[:-2] + [merged_wv11]
         return select_csharp, decoded_wn, decoded_conds_final # (6, 3, 4, 6)
 

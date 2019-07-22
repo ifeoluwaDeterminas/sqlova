@@ -10,7 +10,7 @@ from copy import deepcopy
 from matplotlib.pylab import *
 
 import torch
-# import torchvision.datasets as dsets
+import torchvision.datasets as dsets
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -687,7 +687,6 @@ def get_bert_output(model_bert, tokenizer, nlu_t, hds, max_seq_length):
 	tok_to_orig_index: inverse map.
 
 	"""
-
 	l_n = []
 	l_hs = []  # The length of columns for each batch
 
@@ -756,8 +755,7 @@ def get_bert_output(model_bert, tokenizer, nlu_t, hds, max_seq_length):
 		while len(input_ids1) < max_seq_length:
 			input_ids1.append(0)
 			input_mask1.append(0)
-			segment_ids1.append(0)
-
+			segment_ids1.append(0)	
 		assert len(input_ids1) == max_seq_length
 		assert len(input_mask1) == max_seq_length
 		assert len(segment_ids1) == max_seq_length

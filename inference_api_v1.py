@@ -34,7 +34,7 @@ def predict(data, model, model_bert, bert_config, tokenizer, max_seq_length, num
     
     # normalize the score
     s_sc = F.softmax(s_sc, dim=1)
-    s_wc = F.softmax(s_sc, dim=1)
+    s_wc = F.softmax(s_wc, dim=1)
 
     pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wvi = pred_sw_se_api_topN(s_sc, s_sa, s_wn, s_wc, s_wo, s_wv, n)
 

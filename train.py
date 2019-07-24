@@ -45,7 +45,7 @@ def construct_hyper_param(parser):
                         default='vocab.txt', type=str,
                         help="The vocabulary file that the BERT model was trained on.")
     parser.add_argument("--max_seq_length",
-                        default=222, type=int, # Set based on maximum length of input tokens.
+                        default=256, type=int, # Set based on maximum length of input tokens.
                         help="The maximum total input sequence length after WordPiece tokenization. Sequences "
                              "longer than this will be truncated, and sequences shorter than this will be padded.")
     parser.add_argument("--num_target_layers",
@@ -347,8 +347,11 @@ def train(train_loader, train_table, model, model_bert, opt, bert_config, tokeni
         #   In case of 'dev' or 'test', it is not necessary as the ground-truth is not used during inference.
         pr_wc_sorted = sort_pr_wc(pr_wc, g_wc)
         pr_sql_i = generate_sql_i(pr_sc, pr_sa, pr_wn, pr_wc_sorted, pr_wo, pr_wv_str, nlu)
-
-
+        """ 
+        for __ in pr_wo:
+            if __ !=[0] and __ !=[0,0]:
+                print(__, pr_sql_i, nlu_t, '\n')
+        """
         # Cacluate accuracy
         cnt_sc1_list, cnt_sa1_list, cnt_wn1_list, \
         cnt_wc1_list, cnt_wo1_list, \
@@ -446,7 +449,7 @@ def test(data_loader, data_table, model, model_bert, bert_config, tokenizer,
          path_db=None, dset_name='test'):
     model.eval()
     model_bert.eval()
-
+    #import pdb;pdb.set_trace()
     ave_loss = 0
     cnt = 0
     cnt_sc = 0
@@ -627,7 +630,7 @@ if __name__ == '__main__':
     #     collate_fn=lambda x: x  # now dictionary values are not merged!
     # )
     ## 4. Build & Load models
-    model, model_bert, tokenizer, bert_config = get_models(args, BERT_PT_PATH)
+    model, model_bert, tokenizer, bert_config = get_models_v2(args, BERT_PT_PATH)
 
     ## 4.1.
     # To start from the pre-trained models, un-comment following lines.

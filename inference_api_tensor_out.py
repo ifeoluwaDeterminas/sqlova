@@ -149,13 +149,23 @@ if __name__ == '__main__':
 	"types": ["text", "text", "text", "text", "text", "text"],
 	"data_ix":[[27,11,"Molly clark"]]}
 
-	"""
-
 	data = {   
 		"question": "accounts in Tokyo",
 		"header": ["account name","industry","created, add","category","revenue","number of employees, count of employees","open deals, open opportunities","open revenue","city","state, province","country","status","phone number, contact","email","primary contact, name","owner name"],
 		"types": ["text", "text", "text", "text", "text", "text"],
 		"data_ix":[["12","5","Tokyo"]]}
+
+http://localhost:8888/query?question=What position does the player who played for butler cc (ks) play&header=["Player", "No.", "Nationality", "Position", "Years in Toronto", "School/Club Team"]&types=["text", "text", "text", "text", "text", "text"]
+
+,"question_tok":["What","position","does","the","player","who","played","for","butler","cc","(","ks",")","play","?"],"sql":{"sel":3,"conds":[[5,0,"Butler CC (KS)"]],"agg":0},"query":{"sel":3,"conds":[[5,0,"Butler CC (KS)"]],"agg":0},"wvi_corenlp":[[8,12]]}
+
+
+{"table_id":"1-10015132-11","phase":1,"question":"","question_tok":["What","position","does","the","player","who","played","for","butler","cc","(","ks",")","play","?"],"sql":{"sel":3,"conds":[[5,0,"Butler CC (KS)"]],"agg":0},"query":{"sel":3,"conds":[[5,0,"Butler CC (KS)"]],"agg":0},"wvi_corenlp":[[8,12]]}
+
+	"""
+
+	data ={"question": "What position does the player who played for butler cc (ks) play?", "header": ["Player", "No.", "Nationality", "Position", "Years in Toronto", "School/Club Team"], "types": ["text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "number", "text", "text", "text", "text"], "data_ix":[["0","4","What"]]}
+
 
 	# Prediction
 	with torch.no_grad():

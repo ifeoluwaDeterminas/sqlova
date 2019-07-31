@@ -365,7 +365,7 @@ def train(train_loader, train_table, model, model_bert, opt, bert_config, tokeni
         # lx stands for logical form accuracy
 
         # Execution accuracy test.
-        cnt_x1_list, g_ans, pr_ans = get_cnt_x_list(engine, tb, g_sc, g_sa, sql_i, pr_sc, pr_sa, pr_sql_i)
+        #cnt_x1_list, g_ans, pr_ans = get_cnt_x_list(engine, tb, g_sc, g_sa, sql_i, pr_sc, pr_sa, pr_sql_i)
 
         # statistics
         ave_loss += loss.item()
@@ -379,7 +379,7 @@ def train(train_loader, train_table, model, model_bert, opt, bert_config, tokeni
         cnt_wvi += sum(cnt_wvi1_list)
         cnt_wv += sum(cnt_wv1_list)
         cnt_lx += sum(cnt_lx1_list)
-        cnt_x += sum(cnt_x1_list)
+        #cnt_x += sum(cnt_x1_list)
 
     ave_loss /= cnt
     acc_sc = cnt_sc / cnt
@@ -390,9 +390,10 @@ def train(train_loader, train_table, model, model_bert, opt, bert_config, tokeni
     acc_wvi = cnt_wvi / cnt
     acc_wv = cnt_wv / cnt
     acc_lx = cnt_lx / cnt
-    acc_x = cnt_x / cnt
+    #acc_x = cnt_x / cnt
     #import pdb; pdb.set_trace()
-    acc = [ave_loss, acc_sc, acc_sa, acc_wn, acc_wc, acc_wo, acc_wvi, acc_wv, acc_lx, acc_x]
+    #acc = [ave_loss, acc_sc, acc_sa, acc_wn, acc_wc, acc_wo, acc_wvi, acc_wv, acc_lx, acc_x]
+    acc = [ave_loss, acc_sc, acc_sa, acc_wn, acc_wc, acc_wo, acc_wvi, acc_wv, acc_lx]
 
     aux_out = 1
 
@@ -402,7 +403,7 @@ def report_detail(hds, nlu,
                   g_sc, g_sa, g_wn, g_wc, g_wo, g_wv, g_wv_str, g_sql_q, g_ans,
                   pr_sc, pr_sa, pr_wn, pr_wc, pr_wo, pr_wv_str, pr_sql_q, pr_ans,
                   cnt_list, current_cnt):
-    cnt_tot, cnt, cnt_sc, cnt_sa, cnt_wn, cnt_wc, cnt_wo, cnt_wv, cnt_wvi, cnt_lx, cnt_x = current_cnt
+    cnt_tot, cnt, cnt_sc, cnt_sa, cnt_wn, cnt_wc, cnt_wo, cnt_wv, cnt_wvi, cnt_lx  = current_cnt
 
     print(f'cnt = {cnt} / {cnt_tot} ===============================')
 
@@ -438,7 +439,7 @@ def report_detail(hds, nlu,
 
     print(cnt_list)
 
-    print(f'acc_lx = {cnt_lx/cnt:.3f}, acc_x = {cnt_x/cnt:.3f}\n',
+    print(f'acc_lx = {cnt_lx/cnt:.3f}\n',
           f'acc_sc = {cnt_sc/cnt:.3f}, acc_sa = {cnt_sa/cnt:.3f}, acc_wn = {cnt_wn/cnt:.3f}\n',
           f'acc_wc = {cnt_wc/cnt:.3f}, acc_wo = {cnt_wo/cnt:.3f}, acc_wv = {cnt_wv/cnt:.3f}')
     print(f'===============================')
@@ -555,7 +556,7 @@ def test(data_loader, data_table, model, model_bert, bert_config, tokenizer,
         # lx stands for logical form accuracy
 
         # Execution accuracy test.
-        cnt_x1_list, g_ans, pr_ans = get_cnt_x_list(engine, tb, g_sc, g_sa, sql_i, pr_sc, pr_sa, pr_sql_i)
+        #cnt_x1_list, g_ans, pr_ans = get_cnt_x_list(engine, tb, g_sc, g_sa, sql_i, pr_sc, pr_sa, pr_sql_i)
 
         # stat
         ave_loss += loss.item()
@@ -569,11 +570,10 @@ def test(data_loader, data_table, model, model_bert, bert_config, tokenizer,
         cnt_wv += sum(cnt_wv1_list)
         cnt_wvi += sum(cnt_wvi1_list)
         cnt_lx += sum(cnt_lx1_list)
-        cnt_x += sum(cnt_x1_list)
+        #cnt_x += sum(cnt_x1_list)
 
-        current_cnt = [cnt_tot, cnt, cnt_sc, cnt_sa, cnt_wn, cnt_wc, cnt_wo, cnt_wv, cnt_wvi, cnt_lx, cnt_x]
-        cnt_list1 = [cnt_sc1_list, cnt_sa1_list, cnt_wn1_list, cnt_wc1_list, cnt_wo1_list, cnt_wv1_list, cnt_lx1_list,
-                     cnt_x1_list]
+        current_cnt = [cnt_tot, cnt, cnt_sc, cnt_sa, cnt_wn, cnt_wc, cnt_wo, cnt_wv, cnt_wvi, cnt_lx]
+        cnt_list1 = [cnt_sc1_list, cnt_sa1_list, cnt_wn1_list, cnt_wc1_list, cnt_wo1_list, cnt_wv1_list, cnt_lx1_list]
         cnt_list.append(cnt_list1)
         # report
         if detail:
@@ -591,19 +591,19 @@ def test(data_loader, data_table, model, model_bert, bert_config, tokenizer,
     acc_wvi = cnt_wvi / cnt
     acc_wv = cnt_wv / cnt
     acc_lx = cnt_lx / cnt
-    acc_x = cnt_x / cnt
+    #acc_x = cnt_x / cnt
 
-    acc = [ave_loss, acc_sc, acc_sa, acc_wn, acc_wc, acc_wo, acc_wvi, acc_wv, acc_lx, acc_x]
+    acc = [ave_loss, acc_sc, acc_sa, acc_wn, acc_wc, acc_wo, acc_wvi, acc_wv, acc_lx]
     return acc, results, cnt_list
 
 
 def print_result(epoch, acc, dname):
-    ave_loss, acc_sc, acc_sa, acc_wn, acc_wc, acc_wo, acc_wvi, acc_wv, acc_lx, acc_x = acc
+    ave_loss, acc_sc, acc_sa, acc_wn, acc_wc, acc_wo, acc_wvi, acc_wv, acc_lx = acc
 
     print(f'{dname} results ------------')
     print(
         f" Epoch: {epoch}, ave loss: {ave_loss}, acc_sc: {acc_sc:.3f}, acc_sa: {acc_sa:.3f}, acc_wn: {acc_wn:.3f}, \
-        acc_wc: {acc_wc:.3f}, acc_wo: {acc_wo:.3f}, acc_wvi: {acc_wvi:.3f}, acc_wv: {acc_wv:.3f}, acc_lx: {acc_lx:.3f}, acc_x: {acc_x:.3f}"
+        acc_wc: {acc_wc:.3f}, acc_wo: {acc_wo:.3f}, acc_wvi: {acc_wvi:.3f}, acc_wv: {acc_wv:.3f}, acc_lx: {acc_lx:.3f}"
     )
 
 if __name__ == '__main__':

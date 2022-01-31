@@ -5,7 +5,7 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 import os
 import records
 import ujson as json
-from stanza.nlp.corenlp import CoreNLPClient
+from stanza.server.client import CoreNLPClient
 from tqdm import tqdm
 import copy
 from wikisql.lib.common import count_lines, detokenize
